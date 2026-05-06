@@ -1,36 +1,13 @@
-# Create the .gitignore file
-cat > .gitignore << 'EOF'
-# Virtual Environment
-venv/
-env/
-.venv/
-
-# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Screenshots - not needed for running
-Screenshots_demo/
-
-# Report
-Project_Report.md
-
-# Database files
+.env
 *.db
-*.sqlite
-
-# Logs
-*.log
-EOF
+.DS_Store
+venv/
+.venv/
+instance/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+laundry_db_dump.sql
