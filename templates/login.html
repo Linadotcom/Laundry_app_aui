@@ -1,36 +1,92 @@
-{% extends "layout.html" %}
+{% extends 'layout.html' %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-5">
-        <div class="card p-4 mt-4">
-            <div class="text-center mb-4">
-                <h3 class="fw-bold text-primary">Staff Login</h3>
-                <p class="text-muted">Access the Staff Dashboard</p>
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    {% if role == 'student' %}
+                        <div class="mb-2" style="font-size:2.2rem;">🎓</div>
+                        <h3 class="fw-bold" style="color:#0A3B24;">Student Login</h3>
+                        <p class="text-muted small">Enter your student ID and password</p>
+                    {% elif role == 'staff' %}
+                        <div class="mb-2" style="font-size:2.2rem;">🛠️</div>
+                        <h3 class="fw-bold" style="color:#0A3B24;">Staff Login</h3>
+                        <p class="text-muted small">Enter your staff ID and password</p>
+                    {% elif role == 'admin' %}
+                        <div class="mb-2" style="font-size:2.2rem;">⚙️</div>
+                        <h3 class="fw-bold" style="color:#0A3B24;">Admin Login</h3>
+                        <p class="text-muted small">Enter your admin credentials</p>
+                    {% else %}
+                        <h3 class="fw-bold" style="color:#0A3B24;">Login</h3>
+                        <p class="text-muted small">Select your role and enter your credentials</p>
+                    {% endif %}
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                {% endwith %}
+
+                <form method="POST">
+                    {% if role in ['student', 'staff', 'admin'] %}
+                        <input type="hidden" name="user_type" value="{{ role }}">
+                    {% else %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">I am a:</label>
+                        <select class="form-select" name="user_type" required>
+                            <option value="">-- Select --</option>
+                            <option value="student">Student</option>
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            {% if role == 'student' %}Student ID
+                            {% elif role == 'staff' %}Staff ID
+                            {% elif role == 'admin' %}Username
+                            {% else %}ID / Username{% endif %}
+                        </label>
+                        <input type="{{ 'text' if role == 'admin' else 'number' }}"
+                               class="form-control form-control-lg" name="user_id"
+                               placeholder="{{ '10001' if role == 'student' else '1' if role == 'staff' else 'admin' if role == 'admin' else 'Enter ID or username' }}"
+                               autofocus required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Password</label>
+                        <input type="password" class="form-control form-control-lg" name="password"
+                               placeholder="Enter your password" required>
+                        <div class="form-text">
+                            {% if role == 'student' %}Default password is your student ID (e.g. 10001)
+                            {% elif role == 'staff' %}Default password is your staff ID (e.g. 1)
+                            {% elif role == 'admin' %}Default: admin / admin
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Login</button>
+                </form>
+
+                <div class="text-center mt-4">
+                    {% if role == 'student' %}
+                        <a href="{{ url_for('login', role='staff') }}" class="text-muted small">I'm staff, not a student</a><br>
+                    {% elif role == 'staff' %}
+                        <a href="{{ url_for('login', role='student') }}" class="text-muted small">I'm a student, not staff</a><br>
+                    {% elif role == 'admin' %}
+                        <a href="{{ url_for('login', role='student') }}" class="text-muted small">Student login</a><br>
+                    {% endif %}
+                    <a href="{{ url_for('index') }}" class="text-muted small">Back to Home</a>
+                </div>
             </div>
-
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                  {{ message }}
-                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-              {% endfor %}
-            {% endwith %}
-
-            <form method="POST" action="{{ url_for('login') }}">
-                <div class="mb-3">
-                    <label for="username" class="form-label fw-semibold">Username</label>
-                    <input type="text" class="form-control" id="username" name="username"
-                           placeholder="Enter username" required autofocus>
-                </div>
-                <div class="mb-4">
-                    <label for="password" class="form-label fw-semibold">Password</label>
-                    <input type="password" class="form-control" id="password" name="password"
-                           placeholder="Enter password" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100 fw-semibold">Login</button>
-            </form>
         </div>
     </div>
 </div>
