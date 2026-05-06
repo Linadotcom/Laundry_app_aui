@@ -1,4 +1,4 @@
-cat > README.md << 'EOF'
+cat > README.md << 'EOF' 
 # Laundry Management System
 
 CSC 3326 Project - AUI 4th Semester
