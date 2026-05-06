@@ -1,8 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session
 from functools import wraps
 import database
-from nosql_log import log_order_to_mongo
-import pymongo
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_laundry_key'
@@ -52,11 +50,11 @@ def staff():
     machines = database.get_machine_utilization()
     performance = database.get_performance_report()
     financials = database.get_financial_tracking()
-    
-    return render_template('staff.html', 
-                           orders=orders, 
-                           machines=machines, 
-                           performance=performance, 
+
+    return render_template('staff.html',
+                           orders=orders,
+                           machines=machines,
+                           performance=performance,
                            financials=financials,
                            active_page='staff')
 
@@ -79,9 +77,9 @@ def student():
         else:
             error = "Please enter a valid numeric Student ID."
 
-    return render_template('student.html', 
-                           student=student_info, 
-                           orders=orders, 
+    return render_template('student.html',
+                           student=student_info,
+                           orders=orders,
                            error=error,
                            all_students=all_students,
                            active_page='student')
@@ -89,7 +87,7 @@ def student():
 @app.route('/pricing')
 def pricing():
     pricing_data = database.get_pricing()
-    return render_template('pricing.html', 
+    return render_template('pricing.html',
                            pricing=pricing_data,
                            active_page='pricing')
 
@@ -97,10 +95,10 @@ def pricing():
 def update_status():
     order_id = request.form.get('order_id')
     new_status = request.form.get('status')
-    
+
     if not order_id or not new_status:
         return jsonify({'success': False, 'error': 'Missing parameters'}), 400
-        
+
     try:
         database.update_order_status(int(order_id), new_status)
         return jsonify({'success': True})
@@ -114,39 +112,26 @@ def create_order_api():
         student_id = data.get('student_id')
         machine_id = data.get('machine_id')
         service_type = data.get('service_type')
-        weight_kg = data.get('weight_kg')
-        total_price = data.get('total_price')
-        
-        # PostgreSQL INSERT
+        weight_kg = float(data.get('weight_kg', 0))
+
+        if not all([student_id, machine_id, service_type, weight_kg]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+        if weight_kg <= 0:
+            return jsonify({'success': False, 'error': 'Weight must be greater than 0'}), 400
+
+        total_price = weight_kg * 1.50
+
         order_id = database.create_order(student_id, machine_id, service_type, weight_kg, total_price)
-        
-        # MongoDB Activity Log
-        log_order_to_mongo({
-             "order_id": order_id,
-             "student_id": int(student_id),
-             "machine_id": int(machine_id),
-             "service_type": service_type,
-             "total_price": float(total_price)
-        })
-        
+
         return jsonify({'success': True, 'order_id': order_id})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/nosql-logs')
-def nosql_logs():
-    try:
-        client = pymongo.MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=2000)
-        db = client["laundry_nosql"]
-        collection = db["order_logs"]
-        # Fetch last 20 documents, sorted by timestamp descending
-        logs_cursor = collection.find().sort("timestamp", pymongo.DESCENDING).limit(20)
-        logs = list(logs_cursor)
-    except Exception as e:
-        logs = []
-        flash(f"MongoDB Connection Error: {e}")
-
-    return render_template('nosql_logs.html', logs=logs, active_page='nosql_logs')
+@app.route('/test-db')
+def test_db():
+    success, message = database.test_connection()
+    return jsonify({'success': success, 'message': message})
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)
