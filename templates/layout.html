@@ -87,9 +87,7 @@
                 <li class="nav-item">
                     <a class="nav-link {% if active_page == 'pricing' %}active{% endif %}" href="{{ url_for('pricing') }}">Pricing</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if active_page == 'nosql_logs' %}active{% endif %}" href="{{ url_for('nosql_logs') }}">📦 Activity Log (NoSQL)</a>
-                </li>
+
             </ul>
             <ul class="navbar-nav ms-3">
                 {% if session.get('logged_in') %}
