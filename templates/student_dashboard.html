@@ -1,0 +1,167 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="fw-bold" style="color:#0A3B24;">Student Dashboard</h2>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endwith %}
+
+<div class="row g-4">
+    <!-- Left sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title fw-semibold">Profile</h5>
+                <p class="mb-1"><strong>{{ student.first_name }} {{ student.last_name }}</strong></p>
+                <p class="mb-1 text-muted small">{{ student.email }}</p>
+                {% if student.residence %}
+                <p class="mb-0 text-muted small">{{ student.residence }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-3" style="background: linear-gradient(135deg, #0A3B24, #157347);">
+            <div class="card-body text-white">
+                <h6 class="card-title mb-1">Cash Wallet Balance</h6>
+                <h2 class="mb-0 fw-bold">{{ "%.2f"|format(student.account_balance) }} Dhs</h2>
+            </div>
+        </div>
+
+        <a href="{{ url_for('student_new_order') }}" class="btn btn-primary w-100 mt-3 py-2 fw-semibold">
+            + Create New Order
+        </a>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary w-100 mt-2">Logout</a>
+
+        <!-- Rating card -->
+        <div class="card mt-3" id="rating-card">
+            <div class="card-header" style="background-color:#0A3B24;">
+                <h5 class="mb-0 text-white">Rate Our Service</h5>
+            </div>
+            <div class="card-body" id="rating-body">
+                <p class="text-muted small mb-3">How was your laundry experience?</p>
+
+                <div class="d-flex gap-1 mb-2 justify-content-center" id="star-row">
+                    {% for i in range(1, 6) %}
+                    <span class="rating-star" data-val="{{ i }}"
+                          style="font-size:2rem; cursor:pointer; color:#dee2e6; transition:color 0.15s;">&#9733;</span>
+                    {% endfor %}
+                </div>
+                <p class="text-center small text-muted mb-3" id="star-label">Select a rating</p>
+
+                <textarea id="rating-comment" class="form-control form-control-sm mb-3"
+                          rows="3" placeholder="Leave a comment (optional)..."
+                          style="resize:none;"></textarea>
+
+                <button class="btn btn-primary w-100 fw-semibold" onclick="submitRating()">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order history -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header" style="background-color:#0A3B24;">
+                <h5 class="mb-0 text-white">Order History</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if order_history %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Date</th>
+                                <th>Service</th>
+                                <th>Weight</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Payment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in order_history %}
+                            <tr>
+                                <td>#{{ order.order_id }}</td>
+                                <td class="small">{{ order.dropoff_date.strftime('%Y-%m-%d') if order.dropoff_date else 'N/A' }}</td>
+                                <td>{{ order.service_type or 'N/A' }}</td>
+                                <td>{{ order.total_weight_kg or 0 }} kg</td>
+                                <td>{{ "%.2f"|format(order.total_price) }} Dhs</td>
+                                <td>
+                                    {% set s = order.order_status %}
+                                    <span class="badge bg-{{ 'warning text-dark' if s == 'Pending' else 'info' if s == 'In Progress' else 'success' if s == 'Completed' else 'secondary' }}">
+                                        {{ s }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% set pay = 'Paid' if order.order_status == 'Picked Up' else order.payment_status %}
+                                    <span class="badge bg-{{ 'warning text-dark' if pay == 'Pending' else 'success' }}">
+                                        {{ pay }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <p>No orders yet. Create your first order!</p>
+                    <a href="{{ url_for('student_new_order') }}" class="btn btn-primary">Create Order</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedRating = 0;
+const stars = document.querySelectorAll('.rating-star');
+const label = document.getElementById('star-label');
+const labels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+const GREEN = '#0A3B24';
+
+stars.forEach(star => {
+    star.addEventListener('mouseenter', () => {
+        const v = +star.dataset.val;
+        stars.forEach(s => s.style.color = +s.dataset.val <= v ? '#f59e0b' : '#dee2e6');
+    });
+    star.addEventListener('mouseleave', () => {
+        stars.forEach(s => s.style.color = +s.dataset.val <= selectedRating ? GREEN : '#dee2e6');
+    });
+    star.addEventListener('click', () => {
+        selectedRating = +star.dataset.val;
+        stars.forEach(s => s.style.color = +s.dataset.val <= selectedRating ? GREEN : '#dee2e6');
+        label.textContent = labels[selectedRating] + ' (' + selectedRating + '/5)';
+        label.style.color = GREEN;
+    });
+});
+
+function submitRating() {
+    if (!selectedRating) {
+        label.textContent = 'Please select a rating first.';
+        label.style.color = '#dc3545';
+        return;
+    }
+    const body = document.getElementById('rating-body');
+    body.innerHTML = `
+        <div class="text-center py-3">
+            <div style="font-size:2.5rem; color:${GREEN};">&#10003;</div>
+            <p class="fw-semibold mb-1 mt-2" style="color:${GREEN};">Thank you for your feedback!</p>
+            <p class="text-muted small mb-0">You rated us ${'★'.repeat(selectedRating)}${'☆'.repeat(5-selectedRating)} (${selectedRating}/5)</p>
+        </div>`;
+}
+</script>
+{% endblock %}

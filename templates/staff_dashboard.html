@@ -1,0 +1,358 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible" role="alert">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endwith %}
+
+<div class="mb-4">
+    <h2 class="fw-bold mb-0" style="color:#0A3B24;">Staff Dashboard</h2>
+    <p class="text-muted mb-0">Welcome, {{ session.get('first_name') }}</p>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <h3 class="fw-bold text-warning mb-0">{{ pending_count }}</h3>
+                <div class="text-muted small">Pending</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <h3 class="fw-bold text-info mb-0">{{ in_progress_count }}</h3>
+                <div class="text-muted small">In Progress</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <h3 class="fw-bold text-success mb-0">{{ completed_count }}</h3>
+                <div class="text-muted small">Completed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <h3 class="fw-bold mb-0" style="color:#0A3B24;">{{ available_machines }}</h3>
+                <div class="text-muted small">Available Machines</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-0" id="dashboardTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-orders">Orders</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-machines">Machines</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-financial">Financial</a></li>
+</ul>
+
+<div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
+
+    <!-- ── ORDERS TAB ── -->
+    <div class="tab-pane fade show active" id="tab-orders">
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+            <span class="fw-semibold text-muted small">Filter:</span>
+            {% for s in ['All', 'Pending', 'In Progress', 'Completed', 'Picked Up'] %}
+            <button class="btn btn-sm filter-btn {{ 'btn-primary' if s == 'All' else 'btn-outline-secondary' }}"
+                    onclick="filterOrders('{{ s }}', this)">{{ s }}</button>
+            {% endfor %}
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="ordersTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Order</th><th>Student</th><th>Date</th><th>Service</th>
+                        <th>Weight</th><th>Total</th><th>Status</th><th>Payment</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr data-status="{{ order.order_status }}" id="order-row-{{ order.order_id }}">
+                        <td><strong>#{{ order.order_id }}</strong></td>
+                        <td>{{ order.student_first or 'N/A' }} {{ order.student_last or '' }}</td>
+                        <td class="small text-muted">{{ order.dropoff_date.strftime('%Y-%m-%d') if order.dropoff_date else 'N/A' }}</td>
+                        <td class="small">{{ order.service_type or 'N/A' }}</td>
+                        <td>{{ order.total_weight_kg or 0 }} kg</td>
+                        <td>{{ "%.2f"|format(order.total_price) }} Dhs</td>
+                        <td id="status-cell-{{ order.order_id }}">
+                            {% set s = order.order_status %}
+                            <span class="badge bg-{{ 'warning text-dark' if s == 'Pending' else 'info' if s == 'In Progress' else 'success' if s == 'Completed' else 'secondary' }}">{{ s }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'warning text-dark' if order.payment_status == 'Pending' else 'success' }}">{{ order.payment_status }}</span>
+                        </td>
+                        <td id="action-cell-{{ order.order_id }}">
+                            {% if order.order_status == 'In Progress' %}
+                            <button class="btn btn-sm btn-success" onclick="completeOrder({{ order.order_id }}, this)">Complete</button>
+                            {% elif order.order_status == 'Completed' %}
+                            <button class="btn btn-sm btn-secondary" onclick="pickUpOrder({{ order.order_id }}, this)">Mark Picked Up</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" class="text-center text-muted py-4">No orders found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── MACHINES TAB ── -->
+    <div class="tab-pane fade" id="tab-machines">
+        <div class="row g-3">
+            {% for m in machines %}
+            <div class="col-md-4">
+                <div class="card h-100 border-{{ 'danger' if m.current_status == 'Busy' else 'success' }}"
+                     id="machine-card-{{ m.machine_id }}">
+
+                    <!-- Header: colour reflects status -->
+                    <div class="card-header d-flex justify-content-between align-items-center py-2"
+                         id="machine-header-{{ m.machine_id }}"
+                         style="background:{{ '#f8d7da' if m.current_status == 'Busy' else '#d1e7dd' }};">
+                        <strong>{{ m.machine_type }} #{{ m.machine_id }}</strong>
+                        <span class="badge bg-{{ 'danger' if m.current_status == 'Busy' else 'success' }}"
+                              id="machine-badge-{{ m.machine_id }}">{{ m.current_status }}</span>
+                    </div>
+
+                    <div class="card-body p-3" id="machine-body-{{ m.machine_id }}">
+                        <p class="text-muted small mb-2">{{ m.location }} &nbsp;|&nbsp; {{ m.capacity_kg }} kg</p>
+
+                        {% if m.current_status == 'Busy' and m.order_id %}
+                        <!-- ── BUSY: show active order + Complete button ── -->
+                        <div class="alert alert-info py-2 px-3 mb-2 small">
+                            <strong>Active:</strong> Order #{{ m.order_id }} — {{ m.first_name or 'Unknown' }}
+                            {% if m.weight_kg %}&nbsp;({{ m.weight_kg }} kg){% endif %}
+                        </div>
+                        <button class="btn btn-success btn-sm w-100"
+                                onclick="completeOrder({{ m.order_id }}, this, {{ m.machine_id }})">
+                            Complete Order #{{ m.order_id }}
+                        </button>
+
+                        {% else %}
+                        <!-- ── AVAILABLE: show full pending orders list ── -->
+                        <p class="small fw-semibold text-muted mb-1">Click an order to assign:</p>
+                        <div style="max-height:240px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px;"
+                             id="pending-list-{{ m.machine_id }}">
+                            {% if pending_orders %}
+                                {% for order in pending_orders %}
+                                <div class="px-2 py-2 border-bottom small"
+                                     style="cursor:pointer; background:white; transition:background 0.15s;"
+                                     onmouseenter="this.style.background='#e8f4fd'"
+                                     onmouseleave="this.style.background='white'"
+                                     onclick="assignOrder({{ m.machine_id }}, {{ order.order_id }}, this)">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>#{{ order.order_id }}</strong>
+                                        <span class="text-primary small">Assign →</span>
+                                    </div>
+                                    <div class="text-muted">{{ order.first_name }} {{ order.last_name }}</div>
+                                    <div>{{ order.total_weight_kg or 0 }} kg &nbsp;·&nbsp; {{ "%.2f"|format(order.total_price) }} Dhs &nbsp;·&nbsp; {{ order.service_type or '' }}</div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <p class="text-muted small p-2 mb-0">No pending orders.</p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col"><p class="text-muted">No machines found.</p></div>
+            {% endfor %}
+        </div>
+    </div>
+
+
+<!-- ── FINANCIAL TAB ── -->
+    <div class="tab-pane fade" id="tab-financial">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr><th>Order</th><th>Student</th><th>Date</th><th>Total</th><th>Order Status</th><th>Payment</th></tr>
+                </thead>
+                <tbody>
+                    {% for f in financials %}
+                    <tr>
+                        <td>#{{ f.order_id }}</td>
+                        <td>{{ f.student_first or 'N/A' }} {{ f.student_last or '' }}</td>
+                        <td class="small">{{ f.dropoff_date.strftime('%Y-%m-%d') if f.dropoff_date else 'N/A' }}</td>
+                        <td>{{ "%.2f"|format(f.total_price) }} Dhs</td>
+                        <td>{{ f.order_status }}</td>
+                        <td><span class="badge bg-warning text-dark">{{ f.payment_status }}</span></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">No pending payments.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ── Filter orders client-side ──────────────────────────────────────────────
+function filterOrders(status, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.replace('btn-primary', 'btn-outline-secondary');
+    });
+    btn.classList.replace('btn-outline-secondary', 'btn-primary');
+    document.querySelectorAll('#ordersTable tbody tr[data-status]').forEach(row => {
+        row.style.display = (status === 'All' || row.dataset.status === status) ? '' : 'none';
+    });
+}
+
+// ── Assign pending order to machine (no popup, in-place update) ───────────
+function assignOrder(machineId, orderId, clickedEl) {
+    clickedEl.style.opacity = '0.4';
+    clickedEl.style.pointerEvents = 'none';
+
+    fetch(`/api/machine/${machineId}/assign-order`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({order_id: orderId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const m = data.machine;
+            // Update the machine card to Busy view
+            updateMachineToBusy(machineId, m.order_id, m.student_name, m.weight_kg);
+            // Update this order's row in the table
+            setOrderRowStatus(orderId, 'In Progress');
+            // Remove this order from ALL other machine pending lists
+            document.querySelectorAll(`[onclick*="assignOrder"][onclick*=", ${orderId},"]`).forEach(el => el.remove());
+        } else {
+            alert('Error: ' + data.error);
+            clickedEl.style.opacity = '1';
+            clickedEl.style.pointerEvents = '';
+        }
+    });
+}
+
+// ── Complete order ─────────────────────────────────────────────────────────
+function completeOrder(orderId, btn, machineId) {
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    fetch(`/api/order/${orderId}/complete`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            setOrderRowStatus(orderId, 'Completed', true);
+            if (machineId) updateMachineToAvailable(machineId);
+        } else {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.textContent = 'Complete';
+        }
+    });
+}
+
+// ── Mark picked up ─────────────────────────────────────────────────────────
+function pickUpOrder(orderId, btn) {
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    fetch(`/api/order/${orderId}/picked-up`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            setOrderRowStatus(orderId, 'Picked Up');
+            const row = document.getElementById(`order-row-${orderId}`);
+            if (row) {
+                const cells = row.querySelectorAll('td');
+                // Payment badge is the 8th cell (index 7)
+                if (cells[7]) cells[7].innerHTML = '<span class="badge bg-success">Paid</span>';
+            }
+        } else {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.textContent = 'Mark Picked Up';
+        }
+    });
+}
+
+// ── Update a table row's status badge + action button ─────────────────────
+function setOrderRowStatus(orderId, status, showPickup) {
+    const row = document.getElementById(`order-row-${orderId}`);
+    const statusCell = document.getElementById(`status-cell-${orderId}`);
+    const actionCell = document.getElementById(`action-cell-${orderId}`);
+    if (row) row.dataset.status = status;
+    const colourMap = {
+        'Pending': 'warning text-dark', 'In Progress': 'info',
+        'Completed': 'success', 'Picked Up': 'secondary'
+    };
+    if (statusCell) statusCell.innerHTML = `<span class="badge bg-${colourMap[status] || 'secondary'}">${status}</span>`;
+    if (actionCell) {
+        if (status === 'In Progress') {
+            actionCell.innerHTML = `<button class="btn btn-sm btn-success" onclick="completeOrder(${orderId}, this)">Complete</button>`;
+        } else if (status === 'Completed') {
+            actionCell.innerHTML = `<button class="btn btn-sm btn-secondary" onclick="pickUpOrder(${orderId}, this)">Mark Picked Up</button>`;
+        } else {
+            actionCell.innerHTML = '';
+        }
+    }
+}
+
+// ── Switch machine card to Busy view ──────────────────────────────────────
+function updateMachineToBusy(machineId, orderId, studentName, weightKg) {
+    const card   = document.getElementById(`machine-card-${machineId}`);
+    const header = document.getElementById(`machine-header-${machineId}`);
+    const badge  = document.getElementById(`machine-badge-${machineId}`);
+    const body   = document.getElementById(`machine-body-${machineId}`);
+    if (!card) return;
+
+    card.className  = card.className.replace('border-success', 'border-danger');
+    header.style.background = '#f8d7da';
+    badge.className = 'badge bg-danger';
+    badge.textContent = 'Busy';
+
+    const wKg = weightKg ? ` (${weightKg} kg)` : '';
+    body.innerHTML = `
+        <p class="text-muted small mb-2">${body.querySelector('p')?.textContent || ''}</p>
+        <div class="alert alert-info py-2 px-3 mb-2 small">
+            <strong>Active:</strong> Order #${orderId} — ${studentName || 'Unknown'}${wKg}
+        </div>
+        <button class="btn btn-success btn-sm w-100"
+                onclick="completeOrder(${orderId}, this, ${machineId})">
+            Complete Order #${orderId}
+        </button>`;
+}
+
+// ── Switch machine card to Available view (reload pending list) ───────────
+function updateMachineToAvailable(machineId) {
+    // Simplest reliable approach: reload just the machines tab data
+    // by reloading the page preserving the active tab
+    sessionStorage.setItem('activeTab', 'tab-machines');
+    location.reload();
+}
+
+// Restore active tab after reload
+document.addEventListener('DOMContentLoaded', () => {
+    const tab = sessionStorage.getItem('activeTab');
+    if (tab) {
+        sessionStorage.removeItem('activeTab');
+        const el = document.querySelector(`[href="#${tab}"]`);
+        if (el) el.click();
+    }
+});
+</script>
+{% endblock %}

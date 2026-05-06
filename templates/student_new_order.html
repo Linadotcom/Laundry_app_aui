@@ -1,0 +1,131 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="fw-bold" style="color:#0A3B24;">Create New Laundry Order</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header" style="background-color:#0A3B24;">
+                <h5 class="mb-0 text-white">Order Details</h5>
+            </div>
+            <div class="card-body p-4">
+                <form id="orderForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Order ID (Auto-assigned)</label>
+                            <input type="text" class="form-control bg-light" value="#{{ next_order_id }}" disabled>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Service Type</label>
+                            <select class="form-select" id="serviceType" required>
+                                <option value="">-- Select Service --</option>
+                                {% for s in service_types %}
+                                <option value="{{ s.service_type }}">{{ s.service_type }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Weight (kg)</label>
+                            <input type="number" class="form-control" id="weightKg"
+                                   step="0.1" min="0.1" placeholder="e.g. 5.5" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Tokens (Jetons)</label>
+                            <input type="number" class="form-control" id="tokens"
+                                   min="1" placeholder="e.g. 10" required>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="alert alert-info d-flex align-items-center">
+                                <div>
+                                    <div class="small text-muted mb-1">Estimated Total (1.50 Dhs/kg)</div>
+                                    <h4 class="mb-0 fw-bold" id="totalPrice">0.00 Dhs</h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1 py-2 fw-semibold">
+                                Confirm Order
+                            </button>
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary flex-grow-1 py-2">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card" style="background: linear-gradient(135deg, #0A3B24, #157347);">
+            <div class="card-body text-white">
+                <h6 class="mb-1">Your Balance</h6>
+                <h3 class="fw-bold mb-0">{{ "%.2f"|format(student.account_balance) }} Dhs</h3>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="fw-semibold mb-2">How it works</h6>
+                <ol class="small text-muted ps-3 mb-0">
+                    <li class="mb-1">Submit your order below</li>
+                    <li class="mb-1">Staff will assign a machine</li>
+                    <li>Pick up when notified</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function recalcPrice() {
+    const weight = parseFloat(document.getElementById('weightKg').value) || 0;
+    const tokens = parseInt(document.getElementById('tokens').value) || 1;
+    document.getElementById('totalPrice').textContent = (weight * 1.50 * tokens).toFixed(2) + ' Dhs';
+}
+document.getElementById('weightKg').addEventListener('input', recalcPrice);
+document.getElementById('tokens').addEventListener('input', recalcPrice);
+
+document.getElementById('orderForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const serviceType = document.getElementById('serviceType').value;
+    const weightKg = parseFloat(document.getElementById('weightKg').value);
+    const tokens = parseInt(document.getElementById('tokens').value);
+
+    if (!serviceType || !weightKg || !tokens) {
+        alert('Please fill in all fields.');
+        return;
+    }
+
+    fetch('{{ url_for("api_create_student_order") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            service_type: serviceType,
+            weight_kg: weightKg,
+            tokens: tokens
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{{ url_for("student_dashboard") }}';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(err => alert('Error: ' + err));
+});
+</script>
+{% endblock %}

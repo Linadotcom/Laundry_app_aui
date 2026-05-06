@@ -60,6 +60,18 @@
         .table {
             vertical-align: middle;
         }
+        .btn-hero {
+            background-color: rgba(255,255,255,0.15);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.7);
+            font-weight: 600;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .btn-hero:hover {
+            background-color: white;
+            border-color: white;
+            color: #0A3B24;
+        }
     </style>
 </head>
 <body>
@@ -79,27 +91,34 @@
                     <a class="nav-link {% if active_page == 'home' %}active{% endif %}" href="{{ url_for('index') }}">Home</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if active_page == 'staff' %}active{% endif %}" href="{{ url_for('staff') }}">Staff Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if active_page == 'student' %}active{% endif %}" href="{{ url_for('student') }}">Student View</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link {% if active_page == 'pricing' %}active{% endif %}" href="{{ url_for('pricing') }}">Pricing</a>
                 </li>
-
+                {% if session.get('user_type') == 'student' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'student' %}active{% endif %}" href="{{ url_for('student_dashboard') }}">My Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('student_new_order') }}">New Order</a>
+                </li>
+                {% elif session.get('user_type') == 'staff' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'staff' %}active{% endif %}" href="{{ url_for('staff_dashboard') }}">Staff Dashboard</a>
+                </li>
+                {% endif %}
             </ul>
             <ul class="navbar-nav ms-3">
-                {% if session.get('logged_in') %}
+                {% if session.get('user_type') == 'admin' %}
                 <li class="nav-item">
-                    <span class="navbar-text me-2 text-muted small">{{ session.get('username') }}</span>
+                    <a class="nav-link {% if active_page == 'admin' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
                 </li>
+                {% endif %}
+                {% if session.get('user_type') %}
                 <li class="nav-item">
                     <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="btn btn-primary btn-sm" href="{{ url_for('login') }}">Staff Login</a>
+                    <a class="nav-link text-muted small" href="{{ url_for('login', role='admin') }}">Admin</a>
                 </li>
                 {% endif %}
             </ul>
@@ -112,8 +131,8 @@
     <div class="container">
         <h1 class="display-4 fw-bold mb-4">Welcome to AUI Laundry Management</h1>
         <p class="lead mb-4">Efficient, reliable, and fresh laundry services for the AUI community.</p>
-        <a href="{{ url_for('student') }}" class="btn btn-light btn-lg px-4 me-3">I'm a Student</a>
-        <a href="{{ url_for('staff') }}" class="btn btn-outline-light btn-lg px-4">Staff Portal</a>
+        <a href="{{ url_for('login', role='student') }}" class="btn btn-hero btn-lg px-5 me-3">I'm a Student</a>
+        <a href="{{ url_for('login', role='staff') }}" class="btn btn-hero btn-lg px-5">Staff Portal</a>
     </div>
 </div>
 
