@@ -99,11 +99,12 @@ def get_financial_tracking():
 def get_machine_utilization():
     query = """
         SELECT m.machine_id, m.machine_type, m.capacity_kg, m.current_status, m.location,
-               COUNT(oi.item_id) as times_used,
-               COALESCE(SUM(oi.weight_kg), 0) as total_weight_processed
+               m.usage_count,
+               COUNT(o.order_id) as times_used,
+               COALESCE(SUM(o.weight_kg), 0) as total_weight_processed
         FROM Laundry_Machine m
-        LEFT JOIN Order_Item oi ON m.machine_id = oi.machine_id
-        GROUP BY m.machine_id, m.machine_type, m.capacity_kg, m.current_status, m.location
+        LEFT JOIN Laundry_Order o ON m.machine_id = o.machine_id
+        GROUP BY m.machine_id, m.machine_type, m.capacity_kg, m.current_status, m.location, m.usage_count
         ORDER BY m.machine_id
     """
     return fetch_all(query)
@@ -124,23 +125,17 @@ def create_order(student_id, machine_id, service_type, weight_kg, total_price, n
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
-                order_query = """
+                query = """
                     INSERT INTO Laundry_Order
-                    (student_id, dropoff_date, expected_pickup, order_status, total_price, payment_status, notes)
-                    VALUES (%s, CURRENT_DATE, CURRENT_DATE + INTERVAL '3 days', 'Pending', %s, 'Pending', %s)
+                    (student_id, machine_id, service_type, weight_kg, total_price,
+                     order_status, payment_status, notes,
+                     dropoff_date, expected_pickup)
+                    VALUES (%s, %s, %s, %s, %s, 'Pending', 'Unpaid', %s,
+                            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '3 days')
                     RETURNING order_id
                 """
-                cur.execute(order_query, (student_id, total_price, notes))
+                cur.execute(query, (student_id, machine_id, service_type, weight_kg, total_price, notes))
                 order_id = cur.fetchone()[0]
-
-                item_query = """
-                    INSERT INTO Order_Item
-                    (order_id, machine_id, price_id, clothing_type, service_type, weight_kg, unit_price, line_total)
-                    VALUES (%s, %s, 1, 'Mixed', %s, %s, %s, %s)
-                """
-                price_per_kg = total_price / weight_kg if weight_kg > 0 else 0
-                cur.execute(item_query, (order_id, machine_id, service_type, weight_kg, price_per_kg, total_price))
-
                 conn.commit()
                 return order_id
     except Exception as e:
