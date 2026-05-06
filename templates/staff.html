@@ -1,0 +1,208 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h2 class="mb-4 fw-bold">Staff Dashboard</h2>
+
+<ul class="nav nav-pills mb-4" id="staffTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="orders-tab" data-bs-toggle="pill" data-bs-target="#orders" type="button" role="tab">Active Orders</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="machines-tab" data-bs-toggle="pill" data-bs-target="#machines" type="button" role="tab">Machines</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="performance-tab" data-bs-toggle="pill" data-bs-target="#performance" type="button" role="tab">Revenue & Performance</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="financial-tab" data-bs-toggle="pill" data-bs-target="#financial" type="button" role="tab">Pending Payments</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="staffTabsContent">
+    
+    <!-- Active Orders Tab -->
+    <div class="tab-pane fade show active" id="orders" role="tabpanel">
+        <div class="card p-4">
+            <h4 class="mb-3">Global Laundry Orders</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Student</th>
+                            <th>Staff</th>
+                            <th>Status</th>
+                            <th>Dropoff</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in orders %}
+                        <tr id="order-row-{{ o.order_id }}">
+                            <td>#{{ o.order_id }}</td>
+                            <td>{{ o.student_first }} {{ o.student_last }}</td>
+                            <td>{{ o.staff_first or 'Unassigned' }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if o.order_status == 'Received' %}bg-secondary
+                                    {% elif o.order_status == 'In Progress' %}bg-warning text-dark
+                                    {% elif o.order_status == 'Completed' %}bg-success
+                                    {% else %}bg-primary{% endif %} status-badge">
+                                    {{ o.order_status }}
+                                </span>
+                            </td>
+                            <td>{{ o.dropoff_date.strftime('%Y-%m-%d') if o.dropoff_date else '' }}</td>
+                            <td>
+                                {% if o.order_status == 'Received' %}
+                                <button class="btn btn-sm btn-primary update-status-btn" data-id="{{ o.order_id }}" data-status="In Progress">Start Work</button>
+                                {% elif o.order_status == 'In Progress' %}
+                                <button class="btn btn-sm btn-success update-status-btn" data-id="{{ o.order_id }}" data-status="Completed">Finish</button>
+                                {% elif o.order_status == 'Completed' %}
+                                <button class="btn btn-sm btn-outline-secondary update-status-btn" data-id="{{ o.order_id }}" data-status="Picked Up">Mark Picked Up</button>
+                                {% else %}
+                                <span class="text-muted">Done</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Machines Tab -->
+    <div class="tab-pane fade" id="machines" role="tabpanel">
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for m in machines %}
+            <div class="col">
+                <div class="card h-100 {% if m.current_status == 'Available' %}border-success{% elif m.current_status == 'Maintenance' %}border-warning{% else %}border-danger{% endif %} text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ m.machine_type }} #{{ m.machine_id }}</h5>
+                        <p class="card-text text-muted mb-2">{{ m.location }} ({{ m.capacity_kg }}kg)</p>
+                        <h4>
+                            <span class="badge 
+                                {% if m.current_status == 'Available' %}bg-success
+                                {% elif m.current_status == 'Maintenance' %}bg-warning text-dark
+                                {% else %}bg-danger{% endif %}">
+                                {{ m.current_status }}
+                            </span>
+                        </h4>
+                        {% if m.order_id %}
+                            <p class="mt-3 mb-0 small">Working on Order #{{ m.order_id }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Performance Tab -->
+    <div class="tab-pane fade" id="performance" role="tabpanel">
+        <div class="card p-4">
+            <h4 class="mb-3">Staff Revenue Report</h4>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Staff ID</th>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Orders Handled</th>
+                            <th>Revenue Generated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in performance %}
+                        <tr>
+                            <td>{{ p.staff_id }}</td>
+                            <td>{{ p.first_name }} {{ p.last_name }}</td>
+                            <td>{{ p.role }}</td>
+                            <td><span class="badge bg-primary rounded-pill">{{ p.orders_handled }}</span></td>
+                            <td class="fw-bold text-success">{{ p.total_revenue }} Dhs</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Tracking Tab -->
+    <div class="tab-pane fade" id="financial" role="tabpanel">
+        <div class="card p-4 border-warning">
+            <h4 class="mb-3 text-warning">Unpaid / Pending Payments</h4>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Student</th>
+                            <th>Total Price</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in financials %}
+                        <tr>
+                            <td>#{{ f.order_id }}</td>
+                            <td>{{ f.student_first }} {{ f.student_last }}</td>
+                            <td class="fw-bold">{{ f.total_price }} Dhs</td>
+                            <td><span class="badge bg-warning text-dark">{{ f.payment_status }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">All payments are cleared!</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll('.update-status-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            const newStatus = this.getAttribute('data-status');
+            const btn = this;
+            
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            btn.disabled = true;
+
+            fetch('{{ url_for("update_status") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'order_id': orderId,
+                    'status': newStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    location.reload(); // Simple reload to reflect changes server-side
+                } else {
+                    alert('Error updating status: ' + data.error);
+                    btn.disabled = false;
+                    btn.innerHTML = btn.innerText;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Connection error');
+                btn.disabled = false;
+                btn.innerHTML = btn.innerText;
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <h2 class="fw-bold mb-3 d-flex align-items-center text-primary">
+                    📦 Activity Log (NoSQL)
+                </h2>
+                <p class="text-muted">Live view of the last 20 orders ingested into MongoDB.</p>
+                
+                <div class="table-responsive mt-4">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead style="background-color: #0A3B24; color: white;">
+                            <tr>
+                                <th class="py-3">Order ID</th>
+                                <th class="py-3">Student ID</th>
+                                <th class="py-3">Service Type</th>
+                                <th class="py-3">Total Price</th>
+                                <th class="py-3">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td class="fw-bold">#{{ log.order_id }}</td>
+                                <td>{{ log.student_id }}</td>
+                                <td><span class="badge bg-secondary">{{ log.service_type }}</span></td>
+                                <td class="fw-bold text-success">{{ log.total_price }} Dhs</td>
+                                <td class="text-muted small">
+                                    {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else 'N/A' }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center p-4 text-muted">
+                                    No activity logs found in the MongoDB <code>order_logs</code> collection.
+                                    Try creating a new order.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

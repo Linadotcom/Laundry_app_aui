@@ -1,0 +1,122 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        
+        <div class="card p-5 mb-4 text-center">
+            <h2 class="fw-bold mb-3">Student Portal</h2>
+            <p class="text-muted mb-4">Enter your Student ID to view your account balance and track your orders.</p>
+            
+            <form method="POST" action="{{ url_for('student') }}" class="d-flex justify-content-center">
+                <div class="input-group" style="max-width: 400px;">
+                    <input type="text" name="student_id" class="form-control form-control-lg" placeholder="Student ID (e.g. 101)" required>
+                    <button class="btn btn-primary btn-lg" type="submit">Search</button>
+                </div>
+            </form>
+            
+            {% if error %}
+            <div class="alert alert-danger mt-3 mb-0 d-inline-block">{{ error }}</div>
+            {% endif %}
+        </div>
+
+        {% if student %}
+        <div class="card mb-4 border-primary">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="mb-1">{{ student.first_name }} {{ student.last_name }}</h4>
+                        <p class="text-muted mb-0">ID: {{ student.student_id }} | Residence: {{ student.residence }}</p>
+                    </div>
+                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                        <div class="p-3 bg-light rounded text-center">
+                            <span class="d-block text-muted small text-uppercase fw-bold">Account Balance</span>
+                            <span class="fs-3 fw-bold {% if student.account_balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                                {{ student.account_balance }} Dhs
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h4 class="mb-3 fw-bold">Your Order History</h4>
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order #</th>
+                            <th>Dropoff Date</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in orders %}
+                        <tr>
+                            <td>{{ o.order_id }}</td>
+                            <td>{{ o.dropoff_date.strftime('%Y-%m-%d') if o.dropoff_date else 'N/A' }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if o.order_status == 'Received' %}bg-secondary
+                                    {% elif o.order_status == 'In Progress' %}bg-warning text-dark
+                                    {% elif o.order_status == 'Completed' %}bg-success
+                                    {% else %}bg-primary{% endif %}">
+                                    {{ o.order_status }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if o.payment_status == 'Paid' %}bg-success
+                                    {% else %}bg-danger{% endif %}">
+                                    {{ o.payment_status }}
+                                </span>
+                            </td>
+                            <td class="fw-bold">{{ o.total_price }} Dhs</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center p-4 text-muted">You have no orders yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <h4 class="mb-3 fw-bold">All Registered Students</h4>
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Residence</th>
+                            <th>Account Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in all_students %}
+                        <tr>
+                            <td><a href="#" onclick="document.querySelector('input[name=\'student_id\']').value='{{ s.student_id }}'; document.forms[0].submit();">{{ s.student_id }}</a></td>
+                            <td>{{ s.first_name }} {{ s.last_name }}</td>
+                            <td>{{ s.residence }}</td>
+                            <td class="fw-bold {% if s.account_balance < 0 %}text-danger{% else %}text-success{% endif %}">{{ s.account_balance }} Dhs</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center p-4 text-muted">No students found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
