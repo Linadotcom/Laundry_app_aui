@@ -1,6 +1,24 @@
 {% extends 'layout.html' %}
 
 {% block content %}
+<!-- SIGNUP BUTTONS AT TOP -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="alert alert-info" style="background-color: #F8FFFE; border: 2px solid #028090;">
+            <h5 style="color: #028090; margin-bottom: 10px;">New to AUI Laundry?</h5>
+            <div class="d-flex gap-2">
+                <a href="/signup/student" class="btn btn-primary" style="background-color: #028090; border-color: #028090;">
+                    ➕ Student Sign Up
+                </a>
+                <a href="/signup/staff" class="btn btn-success" style="background-color: #00A896; border-color: #00A896;">
+                    ➕ Staff Sign Up
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOGIN FORM BELOW -->
 <div class="row justify-content-center">
     <div class="col-md-5">
         <div class="card shadow">

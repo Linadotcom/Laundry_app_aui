@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-lg">
+                <div class="card-body p-5">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <span style="font-size: 48px;">📝</span>
+                        <h2 style="color: #028090; font-weight: bold; margin-top: 10px;">Create Student Account</h2>
+                    </div>
+
+                    {% if error %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ error }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" action="/signup/student" novalidate>
+                        <div class="mb-3">
+                            <label for="student_id" class="form-label">Student ID <span style="color: red;">*</span></label>
+                            <input type="number" class="form-control" id="student_id" name="student_id" placeholder="e.g. 10001" required min="1">
+                            <div class="invalid-feedback">Student ID is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="first_name" class="form-label">First Name <span style="color: red;">*</span></label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                            <div class="invalid-feedback">First name is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="last_name" class="form-label">Last Name <span style="color: red;">*</span></label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                            <div class="invalid-feedback">Last name is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email <span style="color: red;">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="invalid-feedback">Valid email is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone_number" class="form-label">Phone Number <span style="color: red;">*</span></label>
+                            <input type="tel" class="form-control" id="phone_number" name="phone_number" placeholder="0771234567" required>
+                            <div class="invalid-feedback">Phone number is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="residence" class="form-label">Residence <span style="color: red;">*</span></label>
+                            <input type="text" class="form-control" id="residence" name="residence" placeholder="Building A" required>
+                            <div class="invalid-feedback">Residence is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="room" class="form-label">Room Number <span style="color: red;">*</span></label>
+                            <input type="text" class="form-control" id="room" name="room" placeholder="101" required>
+                            <div class="invalid-feedback">Room number is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password <span style="color: red;">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password" required minlength="4">
+                            <div class="invalid-feedback">Password must be at least 4 characters</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="confirm_password" class="form-label">Confirm Password <span style="color: red;">*</span></label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="4">
+                            <div class="invalid-feedback">Please confirm your password</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-lg w-100" style="background-color: #028090; color: white; font-weight: bold;">Create Account</button>
+                    </form>
+
+                    <hr class="my-3">
+
+                    <p style="text-align: center; margin: 0; color: #666;">
+                        Already have an account?
+                        <a href="/login/student" style="color: #028090; font-weight: bold; text-decoration: none;">Login here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelector('form').addEventListener('submit', function(event) {
+    const form = event.target;
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm_password').value;
+
+    if (password !== confirm) {
+        event.preventDefault();
+        alert('Passwords do not match!');
+        return false;
+    }
+
+    if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+        form.classList.add('was-validated');
+        return false;
+    }
+});
+</script>
+{% endblock %}

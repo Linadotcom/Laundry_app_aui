@@ -25,7 +25,7 @@ def staff_login_required(f):
     def decorated(*args, **kwargs):
         if session.get('user_type') != 'staff':
             flash('Please log in as staff.', 'warning')
-            return redirect(url_for('login'))
+            return redirect(url_for('login_staff'))
         return f(*args, **kwargs)
     return decorated
 
@@ -34,7 +34,7 @@ def admin_login_required(f):
     def decorated(*args, **kwargs):
         if session.get('user_type') != 'admin':
             flash('Please log in as admin.', 'warning')
-            return redirect(url_for('login'))
+            return redirect(url_for('login_admin'))
         return f(*args, **kwargs)
     return decorated
 
@@ -47,55 +47,178 @@ def index():
 # ── AUTH ──────────────────────────────────────────────────────────────────────
 
 @app.route('/login', methods=['GET', 'POST'])
+@app.route('/login/student', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user_type = request.form.get('user_type')
+        user_type = request.form.get('user_type', 'student')
         user_id = request.form.get('user_id', '').strip()
         password = request.form.get('password', '')
-
-        if not user_type or not user_id or not password:
-            flash('Please fill in all fields.', 'error')
-            role = request.form.get('user_type', '')
-            return render_template('login.html', role=role)
-
         try:
-            if user_type == 'student':
-                student = database.get_student_by_id(int(user_id))
-                if student and database.verify_student_password(int(user_id), password):
-                    session['user_type'] = 'student'
-                    session['user_id'] = int(user_id)
-                    session['first_name'] = student['first_name']
-                    flash(f'Welcome {student["first_name"]}!', 'success')
-                    return redirect(url_for('student_dashboard'))
-                else:
-                    flash('Invalid Student ID or password.', 'error')
-            elif user_type == 'staff':
-                staff = database.get_staff_by_id(int(user_id))
-                if staff and database.verify_staff_password(int(user_id), password):
-                    session['user_type'] = 'staff'
-                    session['user_id'] = int(user_id)
-                    session['first_name'] = staff['first_name']
-                    flash(f'Welcome {staff["first_name"]}!', 'success')
-                    return redirect(url_for('staff_dashboard'))
-                else:
-                    flash('Invalid Staff ID or password.', 'error')
-            elif user_type == 'admin':
-                if database.verify_admin_password(user_id, password):
-                    session['user_type'] = 'admin'
-                    session['username'] = user_id
-                    flash('Welcome Admin!', 'success')
-                    return redirect(url_for('admin_dashboard'))
-                else:
-                    flash('Invalid admin credentials.', 'error')
-            else:
-                flash('Invalid user type.', 'error')
-        except ValueError:
-            flash('ID must be a number.', 'error')
-        except Exception as e:
-            flash(f'Error: {str(e)}', 'error')
+            student = database.get_student_by_id(int(user_id))
+            if student and database.verify_student_password(int(user_id), password):
+                session['user_type'] = 'student'
+                session['user_id'] = int(user_id)
+                session['first_name'] = student['first_name']
+                flash(f'Welcome {student["first_name"]}!', 'success')
+                return redirect(url_for('student_dashboard'))
+        except (ValueError, TypeError):
+            pass
+        return render_template('student_login.html', error='Invalid Student ID or password.')
 
-    role = request.args.get('role', '')
-    return render_template('login.html', role=role)
+    return render_template('student_login.html')
+
+@app.route('/login/staff', methods=['GET', 'POST'])
+def login_staff():
+    if request.method == 'POST':
+        user_id = request.form.get('user_id', '').strip()
+        password = request.form.get('password', '')
+        try:
+            staff = database.get_staff_by_id(int(user_id))
+            if staff and database.verify_staff_password(int(user_id), password):
+                session['user_type'] = 'staff'
+                session['user_id'] = int(user_id)
+                session['first_name'] = staff['first_name']
+                flash(f'Welcome {staff["first_name"]}!', 'success')
+                return redirect(url_for('staff_dashboard'))
+        except (ValueError, TypeError):
+            pass
+        return render_template('staff_login.html', error='Invalid Staff ID or password.')
+
+    return render_template('staff_login.html')
+
+@app.route('/login/admin', methods=['GET', 'POST'])
+def login_admin():
+    if request.method == 'POST':
+        user_id = request.form.get('user_id', '').strip()
+        password = request.form.get('password', '')
+        if database.verify_admin_password(user_id, password):
+            session['user_type'] = 'admin'
+            session['username'] = user_id
+            flash('Welcome Admin!', 'success')
+            return redirect(url_for('admin_dashboard'))
+        return render_template('admin_login.html', error='Invalid username or password.')
+
+    return render_template('admin_login.html')
+
+# ── ADMIN SIGNUP ─────────────────────────────────────────
+
+@app.route('/signup/admin', methods=['GET', 'POST'])
+def admin_signup():
+    if request.method == 'POST':
+        try:
+            admin_id = request.form.get('admin_id', '').strip()
+            username = request.form.get('username', '').strip()
+            email = request.form.get('email', '').strip().lower()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+
+            if not all([admin_id, username, email, password, confirm_password]):
+                return render_template('admin_signup.html', error='All fields are required')
+
+            if database.get_admin_by_id(int(admin_id)):
+                return render_template('admin_signup.html', error=f'Admin ID {admin_id} already exists')
+
+            if database.get_admin_by_username(username):
+                return render_template('admin_signup.html', error=f'Username "{username}" already taken')
+
+            if password != confirm_password:
+                return render_template('admin_signup.html', error='Passwords do not match')
+
+            if len(password) < 4:
+                return render_template('admin_signup.html', error='Password must be at least 4 characters')
+
+            database.create_admin(int(admin_id), username, email, password)
+
+            flash('Admin account created! Please log in.', 'success')
+            return redirect(url_for('login_admin'))
+
+        except Exception as e:
+            return render_template('admin_signup.html', error=f'Error: {str(e)}')
+
+    return render_template('admin_signup.html')
+
+# ── STUDENT SIGNUP ──────────────────────────────────────
+
+@app.route('/signup/student', methods=['GET', 'POST'])
+def student_signup():
+    if request.method == 'POST':
+        try:
+            student_id = request.form.get('student_id', '').strip()
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            email = request.form.get('email', '').strip().lower()
+            phone_number = request.form.get('phone_number', '').strip()
+            residence = request.form.get('residence', '').strip()
+            room = request.form.get('room', '').strip()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+
+            if not all([student_id, first_name, last_name, email, phone_number, residence, room, password, confirm_password]):
+                return render_template('student_signup.html', error='All fields are required')
+
+            if database.get_student_by_id(int(student_id)):
+                return render_template('student_signup.html', error=f'Student ID {student_id} already exists. Please use a different ID.')
+
+            if database.get_student_by_email(email):
+                return render_template('student_signup.html', error=f'Email {email} already registered. Please use a different email.')
+
+            if password != confirm_password:
+                return render_template('student_signup.html', error='Passwords do not match')
+
+            if len(password) < 4:
+                return render_template('student_signup.html', error='Password must be at least 4 characters')
+
+            database.create_student_with_id(int(student_id), first_name, last_name, email, phone_number, residence, room, password)
+            database.create_student_wallet_by_id(int(student_id))
+
+            flash('Account created successfully! Please log in.', 'success')
+            return redirect(url_for('login'))
+
+        except Exception as e:
+            return render_template('student_signup.html', error=f'Error: {str(e)}')
+
+    return render_template('student_signup.html')
+
+
+# ── STAFF SIGNUP ────────────────────────────────────────
+
+@app.route('/signup/staff', methods=['GET', 'POST'])
+def staff_signup():
+    if request.method == 'POST':
+        try:
+            staff_id = request.form.get('staff_id', '').strip()
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            email = request.form.get('email', '').strip().lower()
+            role = request.form.get('role', '').strip()
+            password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+
+            if not all([staff_id, first_name, last_name, email, role, password, confirm_password]):
+                return render_template('staff_signup.html', error='All fields are required')
+
+            if database.get_staff_by_id(int(staff_id)):
+                return render_template('staff_signup.html', error=f'Staff ID {staff_id} already exists. Please use a different ID.')
+
+            if database.get_staff_by_email(email):
+                return render_template('staff_signup.html', error=f'Email {email} already registered. Please use a different email.')
+
+            if password != confirm_password:
+                return render_template('staff_signup.html', error='Passwords do not match')
+
+            if len(password) < 4:
+                return render_template('staff_signup.html', error='Password must be at least 4 characters')
+
+            database.create_staff_with_id(int(staff_id), first_name, last_name, role, email, password)
+
+            flash('Staff account created successfully! Please log in.', 'success')
+            return redirect(url_for('login_staff'))
+
+        except Exception as e:
+            return render_template('staff_signup.html', error=f'Error: {str(e)}')
+
+    return render_template('staff_signup.html')
+
 
 @app.route('/logout')
 def logout():
@@ -188,7 +311,10 @@ def api_assign_order_to_machine(machine_id):
     try:
         data = request.json
         order_id = int(data.get('order_id'))
-        database.assign_order_to_machine(order_id, machine_id)
+        staff_id = session.get('user_id')
+        staff = database.get_staff_by_id(staff_id)
+        staff_name = f"{staff['first_name']} {staff['last_name']}" if staff else None
+        database.assign_order_to_machine(order_id, machine_id, staff_id=staff_id, staff_name=staff_name)
         machine = database.get_single_machine_status(machine_id)
         return jsonify({
             'success': True,
