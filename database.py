@@ -5,21 +5,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_HOST = os.getenv("DATABASE_HOST", "localhost")
-DB_NAME = os.getenv("DATABASE_NAME", "laundry_db")
-DB_USER = os.getenv("DATABASE_USER", "llassri")
+DB_HOST = os.getenv("DATABASE_HOST", "ep-patient-sound-abb14rjt-pooler.eu-west-2.aws.neon.tech")
+DB_NAME = os.getenv("DATABASE_NAME", "neondb")
+DB_USER = os.getenv("DATABASE_USER", "neondb_owner")
 DB_PORT = os.getenv("DATABASE_PORT", "5432")
-DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "")
+DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "npg_b1G3HqTDPkER")
 
 def get_connection():
     try:
-        return psycopg2.connect(
+        conn = psycopg2.connect(
             host=DB_HOST,
             dbname=DB_NAME,
             user=DB_USER,
             port=DB_PORT,
-            password=DB_PASSWORD if DB_PASSWORD else None
+            password=DB_PASSWORD,
+            sslmode="require"
         )
+        conn.cursor().execute("SET search_path TO public")
+        return conn
     except psycopg2.OperationalError as e:
         print(f"Database connection error: {e}")
         raise
@@ -400,7 +403,7 @@ def test_connection():
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM Student")
+                cur.execute("SELECT COUNT(*) FROM student")
                 count = cur.fetchone()[0]
                 return True, f"[OK] Database connected! {count} students found."
     except Exception as e:
