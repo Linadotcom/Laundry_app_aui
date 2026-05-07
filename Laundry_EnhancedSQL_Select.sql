@@ -22,7 +22,7 @@ SELECT
 FROM Laundry_Order o
 JOIN Student s ON o.student_id = s.student_id
 LEFT JOIN Laundry_Staff st ON o.staff_id = st.staff_id
-WHERE DATE(o.dropoff_date) = '2026-03-01';
+WHERE DATE(o.dropoff_date) = '2026-05-07';
 
 
 -- Purpose:
@@ -73,7 +73,7 @@ SELECT
 FROM Laundry_Order o
 JOIN Student s ON o.student_id = s.student_id
 JOIN QR_Code q ON o.order_id = q.order_id
-WHERE o.order_status IN ('Ready', 'Pending');
+WHERE o.order_status IN ('In Progress', 'Pending');
 
 -- Purpose:
     -- Revenue and Service Analysis
