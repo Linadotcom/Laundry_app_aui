@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_HOST = os.getenv("DATABASE_HOST", "localhost")
-DB_NAME = os.getenv("DATABASE_NAME", "laundry_db")
-DB_USER = os.getenv("DATABASE_USER", "llassri")
+DB_NAME = os.getenv("DATABASE_NAME", "neondb")
+DB_USER = os.getenv("DATABASE_USER", "neondb_owner")
 DB_PORT = os.getenv("DATABASE_PORT", "5432")
 DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "")
 
