@@ -36,6 +36,44 @@ def execute_update(query, params=None):
             cur.execute(query, params)
             conn.commit()
 
+# ── STUDENT SIGNUP HELPERS ──────────────────────────────
+
+def get_student_by_email(email):
+    query = "SELECT * FROM Student WHERE email = %s"
+    result = fetch_all(query, (email,))
+    return result[0] if result else None
+
+def create_student_with_id(student_id, first_name, last_name, email, phone_number, residence, room, password):
+    query = """
+        INSERT INTO Student (student_id, first_name, last_name, email, phone_number, residence, room, password, registered_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+    """
+    execute_update(query, (student_id, first_name, last_name, email, phone_number, residence, room, password))
+    return student_id
+
+def create_student_wallet_by_id(student_id):
+    execute_update(
+        "INSERT INTO Cash_Wallet (student_id, balance, last_updated) VALUES (%s, 0, CURRENT_TIMESTAMP)",
+        (student_id,)
+    )
+
+
+# ── STAFF SIGNUP HELPERS ────────────────────────────────
+
+def get_staff_by_email(email):
+    query = "SELECT * FROM Laundry_Staff WHERE email = %s"
+    result = fetch_all(query, (email,))
+    return result[0] if result else None
+
+def create_staff_with_id(staff_id, first_name, last_name, role, email, password):
+    query = """
+        INSERT INTO Laundry_Staff (staff_id, first_name, last_name, role, email, password)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    execute_update(query, (staff_id, first_name, last_name, role, email, password))
+    return staff_id
+
+
 # ── AUTHENTICATION ──────────────────────────────────────────────────────────
 
 def get_student_by_id(student_id):
@@ -64,7 +102,7 @@ def get_student_order_history(student_id):
     query = """
         SELECT order_id, dropoff_date, expected_pickup, actual_pickup,
                order_status, total_price, payment_status,
-               weight_kg as total_weight_kg, service_type
+               weight_kg as total_weight_kg, service_type, processed_by
         FROM Laundry_Order
         WHERE student_id = %s
         ORDER BY dropoff_date DESC
@@ -94,7 +132,7 @@ def get_all_orders():
     query = """
         SELECT o.order_id, o.student_id, o.dropoff_date, o.expected_pickup,
                o.actual_pickup, o.order_status, o.total_price, o.payment_status,
-               o.weight_kg as total_weight_kg, o.service_type,
+               o.weight_kg as total_weight_kg, o.service_type, o.processed_by,
                s.first_name as student_first, s.last_name as student_last
         FROM Laundry_Order o
         LEFT JOIN Student s ON o.student_id = s.student_id
@@ -106,7 +144,7 @@ def get_orders_by_status(status):
     query = """
         SELECT o.order_id, o.student_id, o.dropoff_date, o.expected_pickup,
                o.actual_pickup, o.order_status, o.total_price, o.payment_status,
-               o.weight_kg as total_weight_kg, o.service_type,
+               o.weight_kg as total_weight_kg, o.service_type, o.processed_by,
                s.first_name as student_first, s.last_name as student_last
         FROM Laundry_Order o
         LEFT JOIN Student s ON o.student_id = s.student_id
@@ -126,13 +164,16 @@ def complete_order(order_id):
     query = "UPDATE Laundry_Order SET order_status = 'Completed', actual_pickup = CURRENT_TIMESTAMP WHERE order_id = %s"
     execute_update(query, (order_id,))
 
-def assign_order_to_machine(order_id, machine_id):
+def assign_order_to_machine(order_id, machine_id, staff_id=None, staff_name=None):
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE Laundry_Order SET order_status = 'In Progress', machine_id = %s WHERE order_id = %s",
-                    (machine_id, order_id)
+                    """UPDATE Laundry_Order
+                       SET order_status = 'In Progress', machine_id = %s,
+                           staff_id = %s, processed_by = COALESCE(%s, processed_by)
+                       WHERE order_id = %s""",
+                    (machine_id, staff_id, staff_name, order_id)
                 )
                 conn.commit()
                 return True
@@ -287,10 +328,22 @@ def get_admin_by_username(username):
     result = fetch_all(query, (username,))
     return result[0] if result else None
 
+def get_admin_by_id(admin_id):
+    query = "SELECT * FROM Admin WHERE admin_id = %s"
+    result = fetch_all(query, (admin_id,))
+    return result[0] if result else None
+
 def verify_admin_password(username, password):
     query = "SELECT password FROM Admin WHERE username = %s"
     result = fetch_all(query, (username,))
     return bool(result and result[0]['password'] == password)
+
+def create_admin(admin_id, username, email, password):
+    query = """
+        INSERT INTO Admin (admin_id, username, email, password, created_at)
+        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+    """
+    execute_update(query, (admin_id, username, email, password))
 
 def get_all_students_for_admin():
     query = """
@@ -319,7 +372,7 @@ def get_student_all_orders_for_admin(student_id):
     query = """
         SELECT order_id, dropoff_date, expected_pickup, actual_pickup,
                order_status, total_price, payment_status,
-               weight_kg as total_weight_kg, service_type
+               weight_kg as total_weight_kg, service_type, processed_by
         FROM Laundry_Order
         WHERE student_id = %s
         ORDER BY dropoff_date DESC
@@ -336,33 +389,37 @@ def update_student_info(student_id, first_name, last_name, email, phone, residen
 
 def get_all_staff_for_admin():
     query = """
-        SELECT s.*, COUNT(o.order_id) as orders_handled,
+        SELECT s.staff_id, s.first_name, s.last_name, s.role, s.email, s.password,
+               COUNT(o.order_id) as orders_handled,
                COALESCE(SUM(o.total_price), 0) as total_revenue
         FROM Laundry_Staff s
         LEFT JOIN Laundry_Order o ON s.staff_id = o.staff_id
-        GROUP BY s.staff_id
+        GROUP BY s.staff_id, s.first_name, s.last_name, s.role, s.email, s.password
         ORDER BY s.staff_id
     """
     return fetch_all(query)
 
 def get_staff_detail_for_admin(staff_id):
     query = """
-        SELECT s.*, COUNT(o.order_id) as orders_handled,
+        SELECT s.staff_id, s.first_name, s.last_name, s.role, s.email, s.password,
+               COUNT(o.order_id) as orders_handled,
                COALESCE(SUM(o.total_price), 0) as total_revenue
         FROM Laundry_Staff s
         LEFT JOIN Laundry_Order o ON s.staff_id = o.staff_id
         WHERE s.staff_id = %s
-        GROUP BY s.staff_id
+        GROUP BY s.staff_id, s.first_name, s.last_name, s.role, s.email, s.password
     """
     result = fetch_all(query, (staff_id,))
     return result[0] if result else None
 
 def get_staff_orders_for_admin(staff_id):
     query = """
-        SELECT o.order_id, o.student_id, s.first_name, s.last_name,
-               o.dropoff_date, o.order_status, o.total_price, o.payment_status
+        SELECT o.order_id, o.student_id,
+               s.first_name as student_first, s.last_name as student_last,
+               o.dropoff_date, o.order_status, o.total_price, o.payment_status,
+               o.processed_by
         FROM Laundry_Order o
-        JOIN Student s ON o.student_id = s.student_id
+        LEFT JOIN Student s ON o.student_id = s.student_id
         WHERE o.staff_id = %s
         ORDER BY o.dropoff_date DESC
     """
@@ -372,7 +429,13 @@ def delete_staff(staff_id):
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("UPDATE Laundry_Order SET staff_id = NULL WHERE staff_id = %s", (staff_id,))
+                staff = get_staff_by_id(staff_id)
+                if staff:
+                    name = f"{staff['first_name']} {staff['last_name']}"
+                    cur.execute(
+                        "UPDATE Laundry_Order SET processed_by = %s WHERE staff_id = %s AND (processed_by IS NULL OR processed_by = 'Unassigned')",
+                        (name, staff_id)
+                    )
                 cur.execute("DELETE FROM Laundry_Staff WHERE staff_id = %s", (staff_id,))
                 conn.commit()
                 return True
@@ -384,12 +447,11 @@ def get_all_orders_for_admin():
     query = """
         SELECT o.order_id, o.student_id, o.staff_id,
                s.first_name as student_first, s.last_name as student_last,
-               st.first_name as staff_first, st.last_name as staff_last,
+               o.processed_by,
                o.dropoff_date, o.order_status, o.total_price, o.payment_status,
                o.weight_kg as total_weight_kg, o.service_type
         FROM Laundry_Order o
         LEFT JOIN Student s ON o.student_id = s.student_id
-        LEFT JOIN Laundry_Staff st ON o.staff_id = st.staff_id
         ORDER BY o.dropoff_date DESC
     """
     return fetch_all(query)

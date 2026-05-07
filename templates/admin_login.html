@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-lg">
+                <div class="card-body p-5">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <i class="bi bi-shield-lock" style="font-size: 48px; color: #028090;"></i>
+                        <h2 style="color: #028090; font-weight: bold; margin-top: 10px;">Admin Login</h2>
+                        <p style="color: #666;">Enter your username and password</p>
+                    </div>
+
+                    {% if error %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ error }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endif %}
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endwith %}
+
+                    <form method="POST" action="/login/admin">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="user_id" placeholder="Enter username" required autofocus>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-lg w-100" style="background-color: #028090; color: white; font-weight: bold;">Login</button>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <p style="margin-bottom: 5px;">
+                            <a href="/" style="color: #666; text-decoration: none;">Back to Home</a>
+                        </p>
+                    </div>
+
+                    <div style="text-align: center; padding-top: 10px; border-top: 1px solid #e0e0e0;">
+                        <p style="margin: 10px 0; color: #666;">
+                            New admin?
+                            <a href="/signup/admin" style="color: #028090; font-weight: bold; text-decoration: none;">Sign up here</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

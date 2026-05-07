@@ -8,6 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         :root {
             --bs-primary: #0A3B24;
@@ -118,7 +120,7 @@
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="nav-link text-muted small" href="{{ url_for('login', role='admin') }}">Admin</a>
+                    <a class="nav-link text-muted small" href="{{ url_for('login_admin') }}">Admin</a>
                 </li>
                 {% endif %}
             </ul>
@@ -131,8 +133,8 @@
     <div class="container">
         <h1 class="display-4 fw-bold mb-4">Welcome to AUI Laundry Management</h1>
         <p class="lead mb-4">Efficient, reliable, and fresh laundry services for the AUI community.</p>
-        <a href="{{ url_for('login', role='student') }}" class="btn btn-hero btn-lg px-5 me-3">I'm a Student</a>
-        <a href="{{ url_for('login', role='staff') }}" class="btn btn-hero btn-lg px-5">Staff Portal</a>
+        <a href="{{ url_for('login') }}" class="btn btn-hero btn-lg px-5 me-3">I'm a Student</a>
+        <a href="{{ url_for('login_staff') }}" class="btn btn-hero btn-lg px-5">Staff Portal</a>
     </div>
 </div>
 

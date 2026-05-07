@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-lg">
+                <div class="card-body p-5">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <i class="bi bi-shield-plus" style="font-size: 48px; color: #028090;"></i>
+                        <h2 style="color: #028090; font-weight: bold; margin-top: 10px;">Create Admin Account</h2>
+                    </div>
+
+                    {% if error %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ error }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" action="/signup/admin" novalidate>
+                        <div class="mb-3">
+                            <label for="admin_id" class="form-label">Admin ID <span style="color: red;">*</span></label>
+                            <input type="number" class="form-control" id="admin_id" name="admin_id" placeholder="e.g. 1" required min="1">
+                            <div class="invalid-feedback">Admin ID is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username <span style="color: red;">*</span></label>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="e.g. admin1" required>
+                            <div class="invalid-feedback">Username is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email <span style="color: red;">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="invalid-feedback">Valid email is required</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password <span style="color: red;">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password" required minlength="4">
+                            <div class="invalid-feedback">Password must be at least 4 characters</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="confirm_password" class="form-label">Confirm Password <span style="color: red;">*</span></label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="4">
+                            <div class="invalid-feedback">Please confirm your password</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-lg w-100" style="background-color: #028090; color: white; font-weight: bold;">Create Account</button>
+                    </form>
+
+                    <hr class="my-3">
+
+                    <p style="text-align: center; margin: 0; color: #666;">
+                        Already have an account?
+                        <a href="/login/admin" style="color: #028090; font-weight: bold; text-decoration: none;">Login here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelector('form').addEventListener('submit', function(event) {
+    const form = event.target;
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm_password').value;
+
+    if (password !== confirm) {
+        event.preventDefault();
+        alert('Passwords do not match!');
+        return false;
+    }
+
+    if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+        form.classList.add('was-validated');
+        return false;
+    }
+});
+</script>
+{% endblock %}
