@@ -164,9 +164,13 @@ def complete_order(order_id):
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT machine_id FROM Laundry_Order WHERE order_id = %s", (order_id,))
+        cur.execute("SELECT machine_id, order_status FROM Laundry_Order WHERE order_id = %s", (order_id,))
         row = cur.fetchone()
-        machine_id = row[0] if row else None
+        if not row:
+            raise Exception(f"Order #{order_id} not found")
+        if row[1] != 'In Progress':
+            raise Exception(f"Order #{order_id} is '{row[1]}' — only In Progress orders can be completed")
+        machine_id = row[0]
         cur.execute(
             "UPDATE Laundry_Order SET order_status = 'Completed', actual_pickup = CURRENT_TIMESTAMP WHERE order_id = %s",
             (order_id,)
@@ -192,7 +196,34 @@ def complete_order(order_id):
 def assign_order_to_machine(order_id, machine_id, staff_id=None, staff_name=None):
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=DictCursor)
+
+        # Validate machine exists and is available
+        cur.execute("SELECT machine_id, current_status FROM Laundry_Machine WHERE machine_id = %s", (machine_id,))
+        machine = cur.fetchone()
+        if not machine:
+            raise Exception(f"Machine #{machine_id} not found")
+
+        # Check for any active order already on this machine (authoritative check)
+        cur.execute(
+            "SELECT order_id FROM Laundry_Order WHERE machine_id = %s AND order_status IN ('Pending', 'In Progress') LIMIT 1",
+            (machine_id,)
+        )
+        existing = cur.fetchone()
+        if existing:
+            raise Exception(f"Machine #{machine_id} already has active order #{existing['order_id']}")
+
+        if machine['current_status'] == 'Maintenance':
+            raise Exception(f"Machine #{machine_id} is under maintenance and cannot be assigned")
+
+        # Validate order exists and is Pending
+        cur.execute("SELECT order_id, order_status FROM Laundry_Order WHERE order_id = %s", (order_id,))
+        order = cur.fetchone()
+        if not order:
+            raise Exception(f"Order #{order_id} not found")
+        if order['order_status'] != 'Pending':
+            raise Exception(f"Order #{order_id} is '{order['order_status']}' — only Pending orders can be assigned")
+
         cur.execute(
             """UPDATE Laundry_Order
                SET order_status = 'In Progress', machine_id = %s,
