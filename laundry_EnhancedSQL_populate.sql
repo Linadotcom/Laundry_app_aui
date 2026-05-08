@@ -134,12 +134,12 @@ INSERT INTO Laundry_Order (student_id, staff_id, machine_id, service_type, weigh
   (10020, 5, 4, 'Wash & Dry', 4.0, 34.00, 'In Progress', '2026-03-11 15:00:00', '2026-03-13 15:00:00', NULL, 'Paid', NULL),
   
   -- Pending orders
-  (10003, 4, 3, 'Wash', 5.0, 25.00, 'Pending', '2026-03-15 14:00:00', '2026-03-18 14:00:00', NULL, 'Unpaid', 'Large blanket'),
-  (10009, 2, 1, 'Express Wash & Dry', 2.5, 30.00, 'Pending', '2026-03-15 15:00:00', '2026-03-15 21:00:00', NULL, 'Unpaid', 'Urgent'),
-  (10021, 7, 6, 'Wash', 3.0, 15.00, 'Pending', '2026-03-15 16:00:00', '2026-03-18 16:00:00', NULL, 'Unpaid', NULL),
-  (10022, 5, 8, 'Ironing', 4.5, 27.00, 'Pending', '2026-03-16 09:00:00', '2026-03-17 09:00:00', NULL, 'Unpaid', 'Business attire'),
-  (10024, 8, 12, 'Stain Removal', 2.0, 20.00, 'Pending', '2026-03-16 10:00:00', '2026-03-18 10:00:00', NULL, 'Unpaid', 'Coffee stain'),
-  (10025, 2, 1, 'Wash & Dry', 3.5, 29.75, 'Pending', '2026-03-16 11:00:00', '2026-03-18 11:00:00', NULL, 'Unpaid', NULL),
+  (10003,'Wash', 5.0, 25.00, 'Pending', '2026-03-15 14:00:00', '2026-03-18 14:00:00', NULL, 'Unpaid', 'Large blanket'),
+  (10009, 'Express Wash & Dry', 2.5, 30.00, 'Pending', '2026-03-15 15:00:00', '2026-03-15 21:00:00', NULL, 'Unpaid', 'Urgent'),
+  (10021, 'Wash', 3.0, 15.00, 'Pending', '2026-03-15 16:00:00', '2026-03-18 16:00:00', NULL, 'Unpaid', NULL),
+  (10022, 'Ironing', 4.5, 27.00, 'Pending', '2026-03-16 09:00:00', '2026-03-17 09:00:00', NULL, 'Unpaid', 'Business attire'),
+  (10024, 'Stain Removal', 2.0, 20.00, 'Pending', '2026-03-16 10:00:00', '2026-03-18 10:00:00', NULL, 'Unpaid', 'Coffee stain'),
+  (10025, 'Wash & Dry', 3.5, 29.75, 'Pending', '2026-03-16 11:00:00', '2026-03-18 11:00:00', NULL, 'Unpaid', NULL),
   
   -- Cancelled orders
   (10004, 4, 3, 'Express Wash', 1.0, 7.50, 'Cancelled', '2026-03-05 08:00:00', '2026-03-05 14:00:00', NULL, 'Refunded', 'Changed mind'),

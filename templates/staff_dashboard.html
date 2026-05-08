@@ -115,22 +115,23 @@
         <div class="row g-3">
             {% for m in machines %}
             <div class="col-md-4">
-                <div class="card h-100 border-{{ 'danger' if m.current_status == 'Busy' else 'success' }}"
+                {% set status = m.current_status %}
+                <div class="card h-100 border-{{ 'danger' if status == 'Busy' else 'warning' if status == 'Maintenance' else 'success' }}"
                      id="machine-card-{{ m.machine_id }}">
 
                     <!-- Header: colour reflects status -->
                     <div class="card-header d-flex justify-content-between align-items-center py-2"
                          id="machine-header-{{ m.machine_id }}"
-                         style="background:{{ '#f8d7da' if m.current_status == 'Busy' else '#d1e7dd' }};">
+                         style="background:{{ '#f8d7da' if status == 'Busy' else '#fff3cd' if status == 'Maintenance' else '#d1e7dd' }};">
                         <strong>{{ m.machine_type }} #{{ m.machine_id }}</strong>
-                        <span class="badge bg-{{ 'danger' if m.current_status == 'Busy' else 'success' }}"
-                              id="machine-badge-{{ m.machine_id }}">{{ m.current_status }}</span>
+                        <span class="badge bg-{{ 'danger' if status == 'Busy' else 'warning text-dark' if status == 'Maintenance' else 'success' }}"
+                              id="machine-badge-{{ m.machine_id }}">{{ status }}</span>
                     </div>
 
                     <div class="card-body p-3" id="machine-body-{{ m.machine_id }}">
                         <p class="text-muted small mb-2">{{ m.location }} &nbsp;|&nbsp; {{ m.capacity_kg }} kg</p>
 
-                        {% if m.current_status == 'Busy' and m.order_id %}
+                        {% if status == 'Busy' and m.order_id %}
                         <!-- ── BUSY: show active order + Complete button ── -->
                         <div class="alert alert-info py-2 px-3 mb-2 small">
                             <strong>Active:</strong> Order #{{ m.order_id }} — {{ m.first_name or 'Unknown' }}
@@ -140,6 +141,10 @@
                                 onclick="completeOrder({{ m.order_id }}, this, {{ m.machine_id }})">
                             Complete Order #{{ m.order_id }}
                         </button>
+
+                        {% elif status == 'Maintenance' %}
+                        <!-- ── MAINTENANCE: machine out of service ── -->
+                        <p class="text-warning-emphasis small mb-0"><i class="bi bi-tools"></i> Under maintenance — not available for orders.</p>
 
                         {% else %}
                         <!-- ── AVAILABLE: show full pending orders list ── -->

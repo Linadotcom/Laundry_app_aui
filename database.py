@@ -161,22 +161,53 @@ def update_order_status(order_id, status):
     execute_update(query, (status, order_id))
 
 def complete_order(order_id):
-    query = "UPDATE Laundry_Order SET order_status = 'Completed', actual_pickup = CURRENT_TIMESTAMP WHERE order_id = %s"
-    execute_update(query, (order_id,))
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT machine_id FROM Laundry_Order WHERE order_id = %s", (order_id,))
+        row = cur.fetchone()
+        machine_id = row[0] if row else None
+        cur.execute(
+            "UPDATE Laundry_Order SET order_status = 'Completed', actual_pickup = CURRENT_TIMESTAMP WHERE order_id = %s",
+            (order_id,)
+        )
+        if machine_id:
+            # Only free machine if it has no other active orders
+            cur.execute(
+                "SELECT COUNT(*) FROM Laundry_Order WHERE machine_id = %s AND order_status IN ('Pending', 'In Progress') AND order_id != %s",
+                (machine_id, order_id)
+            )
+            if cur.fetchone()[0] == 0:
+                cur.execute(
+                    "UPDATE Laundry_Machine SET current_status = 'Available' WHERE machine_id = %s AND current_status != 'Maintenance'",
+                    (machine_id,)
+                )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error completing order: {e}")
+        raise
 
 def assign_order_to_machine(order_id, machine_id, staff_id=None, staff_name=None):
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """UPDATE Laundry_Order
-                       SET order_status = 'In Progress', machine_id = %s,
-                           staff_id = %s, processed_by = COALESCE(%s, processed_by)
-                       WHERE order_id = %s""",
-                    (machine_id, staff_id, staff_name, order_id)
-                )
-                conn.commit()
-                return True
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """UPDATE Laundry_Order
+               SET order_status = 'In Progress', machine_id = %s,
+                   staff_id = %s, processed_by = COALESCE(%s, processed_by)
+               WHERE order_id = %s""",
+            (machine_id, staff_id, staff_name, order_id)
+        )
+        cur.execute(
+            "UPDATE Laundry_Machine SET current_status = 'Busy' WHERE machine_id = %s",
+            (machine_id,)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
     except Exception as e:
         print(f"Error assigning order: {e}")
         raise
@@ -207,26 +238,38 @@ def create_complete_order(student_id, machine_id, service_type, weight_kg, total
 
 def get_all_machines():
     query = """
-        SELECT m.machine_id, m.machine_type, m.capacity_kg, m.location,
-               CASE WHEN o.order_id IS NOT NULL THEN 'Busy' ELSE 'Available' END AS current_status,
-               o.order_id, s.first_name, o.weight_kg
+        SELECT DISTINCT ON (m.machine_id)
+            m.machine_id, m.machine_type, m.capacity_kg, m.location,
+            CASE
+                WHEN o.order_id IS NOT NULL THEN 'Busy'
+                WHEN m.current_status = 'Maintenance' THEN 'Maintenance'
+                ELSE 'Available'
+            END AS current_status,
+            o.order_id, s.first_name, o.weight_kg
         FROM Laundry_Machine m
         LEFT JOIN Laundry_Order o ON m.machine_id = o.machine_id
-            AND o.order_status = 'In Progress'
+            AND o.order_status IN ('Pending', 'In Progress')
         LEFT JOIN Student s ON o.student_id = s.student_id
-        ORDER BY m.machine_id
+        ORDER BY m.machine_id, o.order_id DESC NULLS LAST
     """
     return fetch_all(query)
 
 def get_machine_details(machine_id):
     query = """
-        SELECT m.machine_id, m.machine_type, m.capacity_kg, m.current_status, m.location,
-               o.order_id, o.student_id, s.first_name, o.order_status
+        SELECT DISTINCT ON (m.machine_id)
+            m.machine_id, m.machine_type, m.capacity_kg, m.location,
+            CASE
+                WHEN o.order_id IS NOT NULL THEN 'Busy'
+                WHEN m.current_status = 'Maintenance' THEN 'Maintenance'
+                ELSE 'Available'
+            END AS current_status,
+            o.order_id, o.student_id, s.first_name, o.order_status
         FROM Laundry_Machine m
         LEFT JOIN Laundry_Order o ON m.machine_id = o.machine_id
             AND o.order_status IN ('Pending', 'In Progress')
         LEFT JOIN Student s ON o.student_id = s.student_id
         WHERE m.machine_id = %s
+        ORDER BY m.machine_id, o.order_id DESC NULLS LAST
     """
     result = fetch_all(query, (machine_id,))
     return result[0] if result else None
@@ -329,10 +372,24 @@ def mark_order_picked_up_and_deduct_wallet(order_id, amount, student_id):
             conn.close()
             raise Exception(f"Insufficient balance: {float(row[0]):.2f} < {float(amount):.2f}")
 
+        cur.execute("SELECT machine_id FROM Laundry_Order WHERE order_id = %s", (order_id,))
+        machine_row = cur.fetchone()
+        machine_id = machine_row[0] if machine_row else None
+
         cur.execute(
             "UPDATE Laundry_Order SET order_status = 'Picked Up', payment_status = 'Paid', actual_pickup = CURRENT_TIMESTAMP WHERE order_id = %s",
             (order_id,)
         )
+        if machine_id:
+            cur.execute(
+                "SELECT COUNT(*) FROM Laundry_Order WHERE machine_id = %s AND order_status IN ('Pending', 'In Progress') AND order_id != %s",
+                (machine_id, order_id)
+            )
+            if cur.fetchone()[0] == 0:
+                cur.execute(
+                    "UPDATE Laundry_Machine SET current_status = 'Available' WHERE machine_id = %s AND current_status != 'Maintenance'",
+                    (machine_id,)
+                )
         # Inserting a negative amount triggers update_wallet_on_transaction which does balance + NEW.amount
         cur.execute(
             "INSERT INTO Wallet_Transaction (student_id, order_id, transaction_type, amount) VALUES (%s, %s, 'Order Payment', %s)",
@@ -390,15 +447,20 @@ def verify_staff_password(staff_id, password):
 
 def get_single_machine_status(machine_id):
     query = """
-        SELECT m.machine_id, m.machine_type, m.capacity_kg, m.location,
-               CASE WHEN o.order_id IS NOT NULL THEN 'Busy' ELSE 'Available' END AS current_status,
-               o.order_id, s.first_name, o.weight_kg
+        SELECT DISTINCT ON (m.machine_id)
+            m.machine_id, m.machine_type, m.capacity_kg, m.location,
+            CASE
+                WHEN o.order_id IS NOT NULL THEN 'Busy'
+                WHEN m.current_status = 'Maintenance' THEN 'Maintenance'
+                ELSE 'Available'
+            END AS current_status,
+            o.order_id, s.first_name, o.weight_kg
         FROM Laundry_Machine m
         LEFT JOIN Laundry_Order o ON m.machine_id = o.machine_id
-            AND o.order_status = 'In Progress'
+            AND o.order_status IN ('Pending', 'In Progress')
         LEFT JOIN Student s ON o.student_id = s.student_id
         WHERE m.machine_id = %s
-        LIMIT 1
+        ORDER BY m.machine_id, o.order_id DESC NULLS LAST
     """
     result = fetch_all(query, (machine_id,))
     return result[0] if result else None

@@ -294,7 +294,7 @@ def staff_dashboard():
     pending_count = sum(1 for o in all_orders if o['order_status'] == 'Pending')
     in_progress_count = sum(1 for o in all_orders if o['order_status'] == 'In Progress')
     completed_count = sum(1 for o in all_orders if o['order_status'] == 'Completed')
-    available_machines = sum(1 for m in machines if m['current_status'] == 'Available')
+    available_machines = sum(1 for m in machines if m['current_status'] not in ('Busy', 'Maintenance'))
     return render_template('staff_dashboard.html',
                            orders=orders,
                            machines=machines,
