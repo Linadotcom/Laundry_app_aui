@@ -22,7 +22,7 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Service Type</label>
+                            <label class="form-label fw-semibold">Service Type <span class="text-danger">*</span></label>
                             <select class="form-select" id="serviceType" required>
                                 <option value="">-- Select Service --</option>
                                 {% for s in service_types %}
@@ -32,21 +32,21 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Weight (kg)</label>
+                            <label class="form-label fw-semibold">Weight (kg) <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="weightKg"
                                    step="0.1" min="0.1" placeholder="e.g. 5.5" required>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Tokens (Jetons)</label>
-                            <input type="number" class="form-control" id="tokens"
-                                   min="1" placeholder="e.g. 10" required>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="text-muted small" id="rateHint" style="padding-bottom:6px;">
+                                Select a service to see the rate.
+                            </div>
                         </div>
 
                         <div class="col-12">
                             <div class="alert alert-info d-flex align-items-center">
                                 <div>
-                                    <div class="small text-muted mb-1">Estimated Total (1.50 Dhs/kg)</div>
+                                    <div class="small text-muted mb-1">Estimated Total</div>
                                     <h4 class="mb-0 fw-bold" id="totalPrice">0.00 Dhs</h4>
                                 </div>
                             </div>
@@ -78,44 +78,63 @@
             <div class="card-body">
                 <h6 class="fw-semibold mb-2">How it works</h6>
                 <ol class="small text-muted ps-3 mb-0">
-                    <li class="mb-1">Submit your order below</li>
-                    <li class="mb-1">Staff will assign a machine</li>
-                    <li>Pick up when notified</li>
+                    <li class="mb-1">Select service type and enter weight</li>
+                    <li class="mb-1">Price updates automatically</li>
+                    <li class="mb-1">Submit your order</li>
+                    <li class="mb-1">Staff assigns a machine</li>
+                    <li>Payment deducted on pickup</li>
                 </ol>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
+let pricingData = {};
+
+// Load pricing from server on page load
+fetch('/api/pricing')
+    .then(r => r.json())
+    .then(data => { pricingData = data; })
+    .catch(() => console.warn('Could not load pricing data'));
+
 function recalcPrice() {
-    const weight = parseFloat(document.getElementById('weightKg').value) || 0;
-    const tokens = parseInt(document.getElementById('tokens').value) || 1;
-    document.getElementById('totalPrice').textContent = (weight * 1.50 * tokens).toFixed(2) + ' Dhs';
+    const service = document.getElementById('serviceType').value;
+    const weight  = parseFloat(document.getElementById('weightKg').value) || 0;
+    const rate    = pricingData[service];
+
+    if (rate) {
+        document.getElementById('rateHint').textContent = `Rate: ${rate.toFixed(2)} Dhs/kg`;
+    } else {
+        document.getElementById('rateHint').textContent = service ? 'Rate unavailable' : 'Select a service to see the rate.';
+    }
+
+    const total = (rate && weight > 0) ? (rate * weight).toFixed(2) : '0.00';
+    document.getElementById('totalPrice').textContent = total + ' Dhs';
 }
+
+document.getElementById('serviceType').addEventListener('change', recalcPrice);
 document.getElementById('weightKg').addEventListener('input', recalcPrice);
-document.getElementById('tokens').addEventListener('input', recalcPrice);
 
 document.getElementById('orderForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
     const serviceType = document.getElementById('serviceType').value;
-    const weightKg = parseFloat(document.getElementById('weightKg').value);
-    const tokens = parseInt(document.getElementById('tokens').value);
+    const weightKg    = parseFloat(document.getElementById('weightKg').value);
 
-    if (!serviceType || !weightKg || !tokens) {
-        alert('Please fill in all fields.');
-        return;
-    }
+    if (!serviceType) { alert('Please select a service type.'); return; }
+    if (!weightKg || weightKg <= 0) { alert('Please enter a valid weight.'); return; }
+
+    const btn = this.querySelector('[type=submit]');
+    btn.disabled = true;
+    btn.textContent = 'Placing order…';
 
     fetch('{{ url_for("api_create_student_order") }}', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            service_type: serviceType,
-            weight_kg: weightKg,
-            tokens: tokens
-        })
+        body: JSON.stringify({ service_type: serviceType, weight_kg: weightKg })
     })
     .then(r => r.json())
     .then(data => {
@@ -123,9 +142,15 @@ document.getElementById('orderForm').addEventListener('submit', function(e) {
             window.location.href = '{{ url_for("student_dashboard") }}';
         } else {
             alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.textContent = 'Confirm Order';
         }
     })
-    .catch(err => alert('Error: ' + err));
+    .catch(err => {
+        alert('Network error: ' + err);
+        btn.disabled = false;
+        btn.textContent = 'Confirm Order';
+    });
 });
 </script>
 {% endblock %}

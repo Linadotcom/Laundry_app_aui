@@ -263,19 +263,22 @@ def api_create_student_order():
         student_id = session.get('user_id')
         data = request.json
 
-        service_type = data.get('service_type')
+        service_type = data.get('service_type', '').strip()
         weight_kg = float(data.get('weight_kg', 0))
-        tokens = int(data.get('tokens', 0))
 
-        if not service_type or weight_kg <= 0 or tokens <= 0:
+        if not service_type or weight_kg <= 0:
             return jsonify({'success': False, 'error': 'Please fill in all fields correctly.'}), 400
 
-        total_price = weight_kg * 1.50 * tokens
+        price_per_kg = database.get_pricing_for_service(service_type)
+        if price_per_kg is None:
+            return jsonify({'success': False, 'error': f'Unknown service type: {service_type}'}), 400
+
+        total_price = round(weight_kg * price_per_kg, 2)
 
         order_id = database.create_complete_order(
-            student_id, None, service_type, weight_kg, total_price, tokens
+            student_id, None, service_type, weight_kg, total_price, 0
         )
-        session['order_flash'] = f'Order #{order_id} placed successfully — {total_price:.2f} Dhs ({tokens} token{"s" if tokens != 1 else ""}). Staff will assign a machine shortly.'
+        session['order_flash'] = f'Order #{order_id} placed successfully — {total_price:.2f} Dhs. Staff will assign a machine shortly.'
         return jsonify({'success': True, 'order_id': order_id, 'total_price': total_price})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -405,6 +408,11 @@ def api_update_order_status(order_id):
 def pricing():
     pricing_data = database.get_pricing()
     return render_template('pricing.html', pricing=pricing_data, active_page='pricing')
+
+@app.route('/api/pricing')
+def api_pricing():
+    rows = database.get_pricing()
+    return jsonify({row['service_type']: float(row['price_per_kg']) for row in rows})
 
 # ── TEST ──────────────────────────────────────────────────────────────────────
 

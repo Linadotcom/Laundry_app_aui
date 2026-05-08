@@ -317,6 +317,10 @@ def get_machine_utilization():
 def get_pricing():
     return fetch_all("SELECT * FROM Pricing ORDER BY service_type")
 
+def get_pricing_for_service(service_type):
+    result = fetch_all("SELECT price_per_kg FROM Pricing WHERE service_type = %s", (service_type,))
+    return float(result[0]['price_per_kg']) if result else None
+
 def get_all_service_types():
     query = "SELECT DISTINCT service_type FROM Pricing ORDER BY service_type"
     return fetch_all(query)
