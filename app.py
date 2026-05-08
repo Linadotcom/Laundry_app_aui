@@ -234,11 +234,13 @@ def student_dashboard():
     student_id = session.get('user_id')
     student = database.get_student_with_wallet(student_id)
     order_history = database.get_student_order_history(student_id)
+    transactions = database.get_wallet_transactions(student_id)
     if 'order_flash' in session:
         flash(session.pop('order_flash'), 'success')
     return render_template('student_dashboard.html',
                            student=student,
                            order_history=order_history,
+                           transactions=transactions,
                            active_page='student')
 
 @app.route('/student-new-order')
@@ -347,8 +349,40 @@ def api_complete_order(order_id):
 @staff_login_required
 def api_picked_up_order(order_id):
     try:
-        database.mark_order_as_picked_up(order_id)
-        return jsonify({'success': True, 'new_status': 'Picked Up'})
+        order = database.get_order_by_id(order_id)
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+        if order['order_status'] == 'Picked Up':
+            return jsonify({'success': False, 'error': 'Order already picked up'}), 400
+
+        student = database.get_student_by_id(order['student_id'])
+        wallet = database.get_wallet_by_student_id(order['student_id'])
+        if not wallet:
+            return jsonify({'success': False, 'error': 'Student wallet not found'}), 404
+
+        current_balance = float(wallet['balance'])
+        order_price = float(order['total_price'])
+
+        if current_balance < order_price:
+            return jsonify({
+                'success': False,
+                'error': f'Insufficient balance. Student has {current_balance:.2f} DHS but order costs {order_price:.2f} DHS (shortfall: {order_price - current_balance:.2f} DHS)',
+                'student_balance': current_balance,
+                'order_price': order_price,
+                'shortfall': order_price - current_balance
+            }), 400
+
+        database.mark_order_picked_up_and_deduct_wallet(order_id, order_price, order['student_id'])
+
+        student_name = f"{student['first_name']} {student['last_name']}" if student else 'Unknown'
+        return jsonify({
+            'success': True,
+            'new_status': 'Picked Up',
+            'student_name': student_name,
+            'amount_deducted': order_price,
+            'student_balance_before': current_balance,
+            'new_balance': current_balance - order_price
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -430,6 +464,24 @@ def api_update_student(student_id):
             data.get('email'), data.get('phone'), data.get('residence')
         )
         return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/student/<int:student_id>/add-balance', methods=['POST'])
+@admin_login_required
+def api_add_wallet_balance(student_id):
+    try:
+        data = request.json
+        amount = float(data.get('amount', 0))
+        reason = data.get('reason', 'Admin addition')
+        if amount <= 0:
+            return jsonify({'success': False, 'error': 'Amount must be positive'}), 400
+        student = database.get_student_by_id(student_id)
+        if not student:
+            return jsonify({'success': False, 'error': 'Student not found'}), 404
+        database.add_wallet_balance(student_id, amount, reason)
+        wallet = database.get_wallet_by_student_id(student_id)
+        return jsonify({'success': True, 'new_balance': float(wallet['balance'])})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

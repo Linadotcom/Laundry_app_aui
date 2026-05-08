@@ -292,6 +292,88 @@ def mark_order_as_picked_up(order_id):
     query = "UPDATE Laundry_Order SET order_status = 'Picked Up', payment_status = 'Paid', actual_pickup = CURRENT_TIMESTAMP WHERE order_id = %s"
     execute_update(query, (order_id,))
 
+# ── WALLET MANAGEMENT ────────────────────────────────────
+
+def get_wallet_by_student_id(student_id):
+    result = fetch_all("SELECT * FROM Cash_Wallet WHERE student_id = %s", (student_id,))
+    return result[0] if result else None
+
+def get_order_by_id(order_id):
+    query = """
+        SELECT o.*,
+               o.weight_kg as total_weight_kg,
+               s.first_name as student_first, s.last_name as student_last
+        FROM Laundry_Order o
+        LEFT JOIN Student s ON o.student_id = s.student_id
+        WHERE o.order_id = %s
+    """
+    result = fetch_all(query, (order_id,))
+    return result[0] if result else None
+
+def mark_order_picked_up_and_deduct_wallet(order_id, amount, student_id):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        # Lock wallet row and double-check balance
+        cur.execute(
+            "SELECT balance FROM Cash_Wallet WHERE student_id = %s FOR UPDATE",
+            (student_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            raise Exception("Wallet not found")
+        if float(row[0]) < float(amount):
+            cur.close()
+            conn.close()
+            raise Exception(f"Insufficient balance: {float(row[0]):.2f} < {float(amount):.2f}")
+
+        cur.execute(
+            "UPDATE Laundry_Order SET order_status = 'Picked Up', payment_status = 'Paid', actual_pickup = CURRENT_TIMESTAMP WHERE order_id = %s",
+            (order_id,)
+        )
+        # Inserting a negative amount triggers update_wallet_on_transaction which does balance + NEW.amount
+        cur.execute(
+            "INSERT INTO Wallet_Transaction (student_id, order_id, transaction_type, amount) VALUES (%s, %s, 'Order Payment', %s)",
+            (student_id, order_id, -amount)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error in mark_order_picked_up_and_deduct_wallet: {e}")
+        raise
+
+def get_wallet_transactions(student_id):
+    query = """
+        SELECT wt.transaction_id, wt.order_id, wt.transaction_type, wt.amount, wt.created_at,
+               lo.order_status
+        FROM Wallet_Transaction wt
+        LEFT JOIN Laundry_Order lo ON wt.order_id = lo.order_id
+        WHERE wt.student_id = %s
+        ORDER BY wt.created_at DESC
+    """
+    return fetch_all(query, (student_id,))
+
+def add_wallet_balance(student_id, amount, reason='Admin addition'):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        # Inserting a positive amount triggers update_wallet_on_transaction which does balance + NEW.amount
+        cur.execute(
+            "INSERT INTO Wallet_Transaction (student_id, transaction_type, amount) VALUES (%s, %s, %s)",
+            (student_id, reason, amount)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error adding wallet balance: {e}")
+        raise
+
 def verify_student_password(student_id, password):
     query = "SELECT password FROM Student WHERE student_id = %s"
     result = fetch_all(query, (student_id,))

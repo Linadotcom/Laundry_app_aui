@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <!-- Order history -->
+    <!-- Order history + Wallet transactions -->
     <div class="col-md-8">
         <div class="card">
             <div class="card-header" style="background-color:#0A3B24;">
@@ -118,6 +118,44 @@
                     <p>No orders yet. Create your first order!</p>
                     <a href="{{ url_for('student_new_order') }}" class="btn btn-primary">Create Order</a>
                 </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Wallet Transactions -->
+        <div class="card mt-4">
+            <div class="card-header d-flex align-items-center justify-content-between" style="background-color:#0A3B24;">
+                <h5 class="mb-0 text-white">Wallet Transactions</h5>
+                <span class="badge bg-light text-dark">Balance: {{ "%.2f"|format(student.account_balance) }} Dhs</span>
+            </div>
+            <div class="card-body p-0">
+                {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Order</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                            <tr>
+                                <td class="text-muted">{{ tx.created_at.strftime('%Y-%m-%d %H:%M') if tx.created_at else 'N/A' }}</td>
+                                <td>{{ tx.transaction_type or 'N/A' }}</td>
+                                <td>{{ '#' ~ tx.order_id if tx.order_id else '—' }}</td>
+                                <td class="text-end fw-semibold {{ 'text-danger' if tx.amount < 0 else 'text-success' }}">
+                                    {{ '%+.2f'|format(tx.amount) }} Dhs
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted small">No wallet transactions yet.</div>
                 {% endif %}
             </div>
         </div>

@@ -266,6 +266,8 @@ function completeOrder(orderId, btn, machineId) {
 
 // ── Mark picked up ─────────────────────────────────────────────────────────
 function pickUpOrder(orderId, btn) {
+    if (!confirm(`Mark order #${orderId} as picked up?\nThis will deduct the order amount from the student's wallet.`)) return;
+
     btn.disabled = true;
     btn.textContent = '...';
 
@@ -279,14 +281,23 @@ function pickUpOrder(orderId, btn) {
             const row = document.getElementById(`order-row-${orderId}`);
             if (row) {
                 const cells = row.querySelectorAll('td');
-                // Payment badge is the 8th cell (index 7)
                 if (cells[7]) cells[7].innerHTML = '<span class="badge bg-success">Paid</span>';
             }
+            alert(`Order #${orderId} picked up.\nDeducted: ${data.amount_deducted.toFixed(2)} DHS\nNew wallet balance: ${data.new_balance.toFixed(2)} DHS`);
         } else {
-            alert('Error: ' + data.error);
+            let msg = `Cannot mark as picked up:\n${data.error}`;
+            if (data.shortfall) {
+                msg += `\n\nStudent balance: ${data.student_balance.toFixed(2)} DHS\nOrder price: ${data.order_price.toFixed(2)} DHS\nShortfall: ${data.shortfall.toFixed(2)} DHS`;
+            }
+            alert(msg);
             btn.disabled = false;
             btn.textContent = 'Mark Picked Up';
         }
+    })
+    .catch(() => {
+        alert('Network error. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Mark Picked Up';
     });
 }
 
